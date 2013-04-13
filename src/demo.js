@@ -1,5 +1,4 @@
 $(function(){
-    var self = this;
     var webcam = document.getElementById("webcam");
     var webcamCanvas = document.getElementById("webcam-canvas");
     var lipCanvas = document.getElementById("lips-canvas");
@@ -7,7 +6,7 @@ $(function(){
     var initDemo = function(){
         webcam.play();
         LipDetector.init(webcam, webcamCanvas, lipCanvas);
-        compatibility.requestAnimationFrame(LipDetector.tick);        
+        compatibility.requestAnimationFrame(LipDetector.tick);
     }
     compatibility.getUserMedia({video: true}, 
         function(stream) {
