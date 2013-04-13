@@ -6,7 +6,9 @@ $(function(){
     var initDemo = function(){
         webcam.play();
         LipDetector.init(webcam, webcamCanvas, lipCanvas);
-        compatibility.requestAnimationFrame(LipDetector.tick);
+        compatibility.requestAnimationFrame(function(){
+            LipDetector.tick();
+        });
     }
     compatibility.getUserMedia({video: true}, 
         function(stream) {
