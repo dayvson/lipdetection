@@ -5,8 +5,7 @@ var LipDetector = {
         this.lipCanvas = lipCanvas;
         this.webcamCanvasCtx = this.webcamCanvas.getContext('2d');
         this.lipCanvasCtx = this.lipCanvas.getContext('2d');
-        console.log("init", this);
-
+        this.useImage = false;
 
 		this.width = this.webcam.videoWidth;
 		this.height = this.webcam.videoHeight;
@@ -79,11 +78,11 @@ var LipDetector = {
 
 
     tick:function(){
-        compatibility.requestAnimationFrame(function(){
+        this._interval = compatibility.requestAnimationFrame(function(){
             LipDetector.tick();
         });
 
-        if (this.webcam.readyState === this.webcam.HAVE_ENOUGH_DATA) {
+        if (this.webcam.readyState === this.webcam.HAVE_ENOUGH_DATA || this.useImage) {
 			this.webcamCanvasCtx.drawImage(this.webcam, 0, 0, this.width, this.height);
 
 			var face = this.haar(jsfeat.haar.frontalface, this.webcam)[0];
@@ -113,6 +112,7 @@ var LipDetector = {
 				mouth.height += this.height * 0.05;
 				mouth.x -= mouth.width*0.2;
 				mouth.width *= 1.40;
+
 			}
 			this.draw_match(this.webcamCanvasCtx, mouth, this.color);
 
@@ -164,7 +164,7 @@ var LipDetector = {
 					this.draw_match(this.webcamCanvasCtx, mouth, "magenta");
 				}
 			}
-
+            
 
         }
 
@@ -175,6 +175,9 @@ var LipDetector = {
     },
     getLips:function(){
         return null;
+    }, 
+    stop:function () {
+        compatibility.cancelAnimationFrame(this._interval);
     }
 }  
 
