@@ -10,7 +10,7 @@ var LipDetector = {
 
 		this.width = this.webcam.videoWidth;
 		this.height = this.webcam.videoHeight;
-		var max_work_size = 160;
+		var max_work_size = 200;
 
 		this.scale = Math.min(max_work_size/this.width, max_work_size/this.height);
 		var w = (this.width*this.scale)|0;
@@ -31,6 +31,7 @@ var LipDetector = {
 		this.min_scale = 2;
 		this.use_tilted = false;
 
+		this.confidence = 0.5;
 		this.color = "black";
     },
 
@@ -71,7 +72,7 @@ var LipDetector = {
 
 
 	 draw_match: function (ctx, r, color) {
-		 if(r && r.confidence > 0.5) {
+		 if(r) {
 			ctx.strokeStyle = color;
 			ctx.strokeRect(r.x,r.y,r.width,r.height);
 		 }
@@ -101,7 +102,7 @@ var LipDetector = {
 
 				this.draw_match(this.webcamCanvasCtx, face, "green");
 			}
-		
+
 			var mouth = this.haar(jsfeat.haar.mouth, this.webcam, face);
 			if(face) { // XXX primor
 				mouth.y -= this.height * 0.05;
@@ -110,6 +111,12 @@ var LipDetector = {
 				mouth.width *= 1.40;
 			}
 			this.draw_match(this.webcamCanvasCtx, mouth, this.color);
+
+			if(mouth) {
+				this.confidence = this.confidence * 0.99 + mouth.confidence * 0.01;
+				if(mouth.confidence >= this.confidence)
+					this.draw_match(this.webcamCanvasCtx, mouth, "magenta");
+			}
 
 
         }
