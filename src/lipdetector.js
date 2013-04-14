@@ -107,12 +107,19 @@ var LipDetector = {
 			}
 
 			var mouth = this.haar(jsfeat.haar.mouth, this.webcam, lower_face)[0];
-			if(face && mouth) { // XXX primor
-				mouth.y -= this.height * 0.05;
-				mouth.height += this.height * 0.05;
-				mouth.x -= mouth.width*0.2;
-				mouth.width *= 1.40;
-
+			if(face) {
+				if(mouth) { // XXX primor
+					mouth.y -= this.height * 0.05;
+					mouth.height += this.height * 0.075;
+					mouth.x -= mouth.width*0.2;
+					mouth.width *= 1.40;
+				} else {
+					mouth = {};
+					mouth.y = lower_face.y + lower_face.height * 0.2;
+					mouth.height = lower_face.height * 0.75;
+					mouth.x = lower_face.x + lower_face.width * 0.2;
+					mouth.width = lower_face.width * 0.6;
+				}
 			}
 			this.draw_match(this.webcamCanvasCtx, mouth, this.color);
 
