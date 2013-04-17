@@ -1,6 +1,25 @@
 var LipDetector = {
+	create_work_area: function(max_work_size) {
+		var that = {};
+		that.scale = Math.min(max_work_size/this.width, max_work_size/this.height);
+		var w = (this.width*that.scale)|0;
+		var h = (this.height*that.scale)|0;
+		that.canvas = document.createElement('canvas');
+		that.canvas.width = w;
+		that.canvas.height = h;
+		that.ctx = that.canvas.getContext('2d');
+		// document.firstChild.appendChild(that.canvas);
+
+		that.img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
+		that.ii_sum = new Int32Array((w+1)*(h+1));
+		that.ii_sqsum = new Int32Array((w+1)*(h+1));
+		that.ii_tilted = new Int32Array((w+1)*(h+1));
+
+		return that;
+	},
+
     init:function(webcam, webcamCanvas, lipCanvas){
-		this.debug = false;
+		this.debug = 1;
 
         this.webcam = webcam;
         this.webcamCanvas = webcamCanvas;
@@ -11,21 +30,8 @@ var LipDetector = {
 
 		this.width = this.webcam.videoWidth;
 		this.height = this.webcam.videoHeight;
-		var max_work_size = 80;
-
-		this.scale = Math.min(max_work_size/this.width, max_work_size/this.height);
-		var w = (this.width*this.scale)|0;
-		var h = (this.height*this.scale)|0;
-		this.work_canvas = document.createElement('canvas');
-		this.work_canvas.width = w;
-		this.work_canvas.height = h;
-		this.work_ctx = this.work_canvas.getContext('2d');
-		document.firstChild.appendChild(this.work_canvas);
-
-		this.img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
-		this.ii_sum = new Int32Array((w+1)*(h+1));
-		this.ii_sqsum = new Int32Array((w+1)*(h+1));
-		this.ii_tilted = new Int32Array((w+1)*(h+1));
+		this.small_work_area = this.create_work_area(80);
+		this.large_work_area = this.create_work_area(160);
 
 		this.corners = [];
 		for(var i = 0; i < this.width * this.height; i++) {
@@ -35,54 +41,55 @@ var LipDetector = {
 		this.edges_density = 0.13;
 		this.scale_factor = 1.1;
 		this.min_scale = 2;
-		this.use_tilted = false;
+		this.use_tilted = true;
 
 		this.confidence = 0.5;
 		this.color = "black";
 		this.block = { x:0, y:0, width:this.width, height:0 };
     },
 
-	haar:function(classifier, image, roi){
+	haar:function(classifier, image, roi, work){
+		if(!work) work = this.small_work_area;
+
 		if(roi) {
 			this.color = "blue";
 		} else {
 			roi = {x:0, y:0, width:this.width, height:this.height};
 			this.color = "yellow";
 		}
-		this.work_ctx.drawImage(image, roi.x, roi.y, roi.width, roi.height, 0, 0, this.work_canvas.width, this.work_canvas.height);
-		var imageData = this.work_ctx.getImageData( 0,0, this.work_canvas.width,this.work_canvas.height);
 
-		jsfeat.imgproc.grayscale(imageData.data, this.img_u8.data);
+		work.ctx.drawImage(image, roi.x, roi.y, roi.width, roi.height, 0, 0, work.canvas.width, work.canvas.height);
+		var imageData = work.ctx.getImageData( 0,0, work.canvas.width,work.canvas.height);
 
-		// jsfeat.imgproc.equalize_histogram(this.img_u8, this.img_u8); // equalize_histogram
+		jsfeat.imgproc.grayscale(imageData.data, work.img_u8.data);
 
-		jsfeat.imgproc.compute_integral_image(this.img_u8, this.ii_sum, this.ii_sqsum, this.use_tilted && classifier.tilted ? this.ii_tilted : null);
+		// jsfeat.imgproc.equalize_histogram(work.img_u8, work.img_u8); // equalize_histogram
+
+		jsfeat.imgproc.compute_integral_image(work.img_u8, work.ii_sum, work.ii_sqsum, this.use_tilted && classifier.tilted ? work.ii_tilted : null);
 
 		jsfeat.haar.edges_density = this.edges_density;
-		var rects = jsfeat.haar.detect_multi_scale(this.ii_sum, this.ii_sqsum, this.ii_tilted, null, this.img_u8.cols, this.img_u8.rows, classifier, this.scale_factor, this.min_scale);
+		var rects = jsfeat.haar.detect_multi_scale(work.ii_sum, work.ii_sqsum, work.ii_tilted, null, work.img_u8.cols, work.img_u8.rows, classifier, this.scale_factor, this.min_scale);
 		rects = jsfeat.haar.group_rectangles(rects, 1);
 
 		jsfeat.math.qsort(rects, 0, rects.length-1, function(a,b){return (b.confidence<a.confidence);})
 
 		for(var i in rects) {
 			var unscale = 
-			rects[i].x = rects[i].x * roi.width/this.work_canvas.width + roi.x;
-			rects[i].y = rects[i].y * roi.height/this.work_canvas.height + roi.y;
-			rects[i].width  *= roi.width/this.work_canvas.width;
-			rects[i].height *= roi.height/this.work_canvas.height;
+			rects[i].x = rects[i].x * roi.width/work.canvas.width + roi.x;
+			rects[i].y = rects[i].y * roi.height/work.canvas.height + roi.y;
+			rects[i].width  *= roi.width/work.canvas.width;
+			rects[i].height *= roi.height/work.canvas.height;
 		}
 
 		return rects;
 	},
 
-
 	 draw_match: function (ctx, r, color) {
-		 if(this.debug && r) {
+		 if(this.debug > 1 && r) {
 			ctx.strokeStyle = color;
 			ctx.strokeRect(r.x,r.y,r.width,r.height);
 		 }
-	 },
-
+	},
 
     tick:function(){
         this._interval = compatibility.requestAnimationFrame(function(){
@@ -92,6 +99,7 @@ var LipDetector = {
         if (this.webcam.readyState === this.webcam.HAVE_ENOUGH_DATA || this.useImage) {
 			this.webcamCanvasCtx.globalAlpha = 0.25;
 			this.webcamCanvasCtx.drawImage(this.webcam, 0, 0, this.width, this.height);
+			this.webcamCanvasCtx.globalAlpha = 1;
 
 			var face = this.haar(jsfeat.haar.frontalface, this.webcam)[0];
 			this.draw_match(this.webcamCanvasCtx, face, "red");
@@ -99,6 +107,7 @@ var LipDetector = {
 			var lower_face;
 			var upper_face;
 			var eye_mask = { x:0, y:0, width:this.width, height:this.height*.6 };
+			var work = this.small_work_area;
 			if(face) {
 				lower_face = {};
 				lower_face.y      = face.y + face.height*0.5;
@@ -113,13 +122,20 @@ var LipDetector = {
 				upper_face.width  = face.width * 1.2;
 
 				eye_mask = { x:face.x-face.width*0.25, y:face.y, width:face.width*1.5, height:face.y+face.height*0.6 };
-				this.draw_match(this.webcamCanvasCtx, lower_face, "green");
+			} else {
+				lower_face = {};
+				lower_face.y      = this.height*0.1;
+				lower_face.height = this.height*0.8;
+				lower_face.x      = this.width*0.1;
+				lower_face.width  = this.width*0.8;
+				work = this.large_work_area;
 			}
+			this.draw_match(this.webcamCanvasCtx, lower_face, "green");
 			this.draw_match(this.webcamCanvasCtx, eye_mask, "white");
 
-			var mouth = this.haar(jsfeat.haar.mouth, this.webcam, lower_face)[0];
+			var mouth = this.haar(jsfeat.haar.mouth, this.webcam, lower_face, work)[0];
 			if(face) {
-				if(mouth) { // XXX primor
+				if(mouth) { // XXX fixing or creating mouth position based on face
 					mouth.y = Math.ceil(mouth.y-this.height * 0.05);
 					mouth.height = Math.ceil(mouth.height+this.height * 0.075);
 					mouth.x = Math.ceil(mouth.x-mouth.width*0.2);
@@ -186,7 +202,7 @@ var LipDetector = {
 					var smallImageData = this.webcamCanvasCtx.getImageData( mouth.x, mouth.y, mouth.width, mouth.height);
 					var small_img_u8 = new jsfeat.matrix_t(mouth.width, mouth.height, jsfeat.U8_t | jsfeat.C1_t);
 
-					this.webcamCanvasCtx.putImageData( smallImageData, 0,0, 0,0,mouth.width, mouth.height); // XXX debug
+					if(this.debug > 0) this.webcamCanvasCtx.putImageData( smallImageData, 0,0, 0,0,mouth.width, mouth.height);
 
 					jsfeat.imgproc.grayscale(smallImageData.data, small_img_u8.data);
 
@@ -198,14 +214,21 @@ var LipDetector = {
 					var count = jsfeat.yape06.detect(small_img_u8, this.corners);
 
 					this.webcamCanvasCtx.strokeStyle = "white";
+					var cx = mouth.width/2;
+					var cy = mouth.height/2;
+					var md = Math.sqrt(Math.pow(cx,2)+Math.pow(cy,2));
 					for(var i=0; i<count; i++ ) {
-						// TODO select points in the middle of a circle
-						this.webcamCanvasCtx.strokeRect(mouth.x+this.corners[i].x,mouth.y+this.corners[i].y, 1,1);
+						var d = Math.sqrt(Math.pow(this.corners[i].x-cx,2)+Math.pow(this.corners[i].y-cy,2)) / md;
+						if(this.debug > 0) {
+							this.webcamCanvasCtx.globalAlpha = 1-Math.pow(d,1.1);
+							this.webcamCanvasCtx.strokeRect(mouth.x+this.corners[i].x,mouth.y+this.corners[i].y, 1,1);
+						}
 					}
+					this.webcamCanvasCtx.globalAlpha = 1;
 
 
 				} else {
-					console.log("failed: " + mouth.confidence +  " >= " + this.confidence + " && "+ (!intersect));
+					//console.log("failed: " + mouth.confidence +  " >= " + this.confidence + " && "+ (!intersect));
 				}
 			}
             
