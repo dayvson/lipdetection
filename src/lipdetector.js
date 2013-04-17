@@ -19,7 +19,7 @@ var LipDetector = {
 	},
 
     init:function(webcam, webcamCanvas, lipCanvas){
-		this.debug = 2;
+		this.debug = 1;
 
         this.webcam = webcam;
         this.webcamCanvas = webcamCanvas;
@@ -88,9 +88,9 @@ var LipDetector = {
 			rects[i].height *= roi.height/work.canvas.height;
 		}
 
-		if(this.debug > 0) {
-			this.lipCanvasCtx.putImageData( imageData, this.debugPos,this.height-work.canvas.height, 0,0, work.canvas.width, work.canvas.height);
+		if(this.debug > 2) {
 			this.debugPos += work.canvas.width;
+			this.lipCanvasCtx.putImageData( imageData, this.width-this.debugPos,0, 0,0, work.canvas.width, work.canvas.height);
 		}
 
 		return rects;
@@ -125,8 +125,8 @@ var LipDetector = {
 			var work = this.small_work_area;
 			if(face) {
 				lower_face = {};
-				lower_face.y      = face.y + face.height*0.5;
-				lower_face.height = face.height * 0.5;
+				lower_face.y      = face.y + face.height*0.6;
+				lower_face.height = face.height * 0.4;
 				lower_face.x      = face.x + face.width*0.1;
 				lower_face.width  = face.width*0.8;
 
