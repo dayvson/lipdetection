@@ -11,7 +11,7 @@ var LipDetector = {
 
 		this.width = this.webcam.videoWidth;
 		this.height = this.webcam.videoHeight;
-		var max_work_size = 200;
+		var max_work_size = 80;
 
 		this.scale = Math.min(max_work_size/this.width, max_work_size/this.height);
 		var w = (this.width*this.scale)|0;
@@ -90,6 +90,7 @@ var LipDetector = {
         });
 
         if (this.webcam.readyState === this.webcam.HAVE_ENOUGH_DATA || this.useImage) {
+			this.webcamCanvasCtx.globalAlpha = 0.25;
 			this.webcamCanvasCtx.drawImage(this.webcam, 0, 0, this.width, this.height);
 
 			var face = this.haar(jsfeat.haar.frontalface, this.webcam)[0];
@@ -185,19 +186,20 @@ var LipDetector = {
 					var smallImageData = this.webcamCanvasCtx.getImageData( mouth.x, mouth.y, mouth.width, mouth.height);
 					var small_img_u8 = new jsfeat.matrix_t(mouth.width, mouth.height, jsfeat.U8_t | jsfeat.C1_t);
 
-					//this.webcamCanvasCtx.putImageData( smallImageData, 0,0, 0,0,mouth.width, mouth.height);
+					this.webcamCanvasCtx.putImageData( smallImageData, 0,0, 0,0,mouth.width, mouth.height); // XXX debug
 
 					jsfeat.imgproc.grayscale(smallImageData.data, small_img_u8.data);
 
 					jsfeat.imgproc.box_blur_gray(small_img_u8, small_img_u8, 4, 0); // XXX ??
 
 					jsfeat.yape06.laplacian_threshold = 16;
-					jsfeat.yape06.min_eigen_value_threshold = 8;
+					jsfeat.yape06.min_eigen_value_threshold = 1;
 
 					var count = jsfeat.yape06.detect(small_img_u8, this.corners);
 
 					this.webcamCanvasCtx.strokeStyle = "white";
 					for(var i=0; i<count; i++ ) {
+						// TODO select points in the middle of a circle
 						this.webcamCanvasCtx.strokeRect(mouth.x+this.corners[i].x,mouth.y+this.corners[i].y, 1,1);
 					}
 
