@@ -30,8 +30,14 @@ var LipDetector = {
 
 		this.width = this.webcam.videoWidth;
 		this.height = this.webcam.videoHeight;
-		this.small_work_area = this.create_work_area(80);
-		this.large_work_area = this.create_work_area(160);
+
+		this.webcamCanvasCtx.scale(-1,1);
+		this.webcamCanvasCtx.translate(-this.width,0);
+		this.lipCanvasCtx.scale(-1,1);
+		this.lipCanvasCtx.translate(-this.width,0);
+
+		this.small_work_area = this.create_work_area(100);
+		this.large_work_area = this.create_work_area(200);
 
 		this.corners = [];
 		for(var i = 0; i < this.width * this.height; i++) {
@@ -82,6 +88,11 @@ var LipDetector = {
 			rects[i].height *= roi.height/work.canvas.height;
 		}
 
+		if(this.debug > 0) {
+			this.lipCanvasCtx.putImageData( imageData, this.debugPos,this.height-work.canvas.height, 0,0, work.canvas.width, work.canvas.height);
+			this.debugPos += work.canvas.width;
+		}
+
 		return rects;
 	},
 
@@ -98,9 +109,10 @@ var LipDetector = {
         });
 
         if (this.webcam.readyState === this.webcam.HAVE_ENOUGH_DATA || this.useImage) {
+			this.debugPos = 0;
 			this.lipCanvasCtx.clearRect(0, 0, this.width,this.height);
 
-			this.webcamCanvasCtx.globalAlpha = 0.16;
+			this.webcamCanvasCtx.globalAlpha = 0.75;
 			this.webcamCanvasCtx.drawImage(this.webcam, 0, 0, this.width, this.height);
 			this.webcamCanvasCtx.globalAlpha = 1;
 
@@ -109,12 +121,12 @@ var LipDetector = {
 
 			var lower_face;
 			var upper_face;
-			var eye_mask = { x:0, y:0, width:this.width, height:this.height*.6 };
+			var eye_mask = { x:this.width*0.1, y:0, width:this.width*.8, height:this.height*.6 };
 			var work = this.small_work_area;
 			if(face) {
 				lower_face = {};
 				lower_face.y      = face.y + face.height*0.5;
-				lower_face.height = face.height * 0.6;
+				lower_face.height = face.height * 0.5;
 				lower_face.x      = face.x + face.width*0.1;
 				lower_face.width  = face.width*0.8;
 
@@ -124,7 +136,7 @@ var LipDetector = {
 				upper_face.x      = face.x - face.width*0.1;
 				upper_face.width  = face.width * 1.2;
 
-				eye_mask = { x:face.x-face.width*0.25, y:face.y, width:face.width*1.5, height:face.y+face.height*0.6 };
+				eye_mask = { x:face.x-face.width*0.25, y:face.y, width:face.width*1.5, height:face.y+face.height*0.5 };
 			} else {
 				lower_face = {};
 				lower_face.y      = this.height*0.1;
@@ -150,7 +162,7 @@ var LipDetector = {
 
 			var union_count = 0;
 			var union = { x0:this.width, y0:this.height, x1:-1, y1:-1 };
-			var eyes = this.haar(jsfeat.haar.eye, this.webcam, eye_mask);
+			var eyes = this.haar(jsfeat.haar.eye, this.webcam, eye_mask, this.large_work_area);
 			if(eyes.length > 0) {
 				for(var i in eyes) {
 					this.draw_match(this.lipCanvasCtx, eyes[i], "cyan");
@@ -192,19 +204,22 @@ var LipDetector = {
 							   this.block.x+this.block.width < mouth.x || 
 							   this.block.y > mouth.y+mouth.height ||
 							   this.block.y+this.block.height < mouth.y);
-				if(mouth.confidence+0.2 >= this.confidence && !intersect) {
+				if(mouth.confidence+0.25 >= this.confidence && !intersect) {
 					this.draw_match(this.lipCanvasCtx, mouth, "magenta");
 
 
 					// XXX god help us
-					var smallImageData = this.webcamCanvasCtx.getImageData( mouth.x, mouth.y, mouth.width, mouth.height);
+
+					// FIXME not always aligned  (diagonal lines)
+					var smallImageData = this.webcamCanvasCtx.getImageData( this.width-mouth.width-mouth.x, mouth.y, mouth.width, mouth.height );
 					var small_img_u8 = new jsfeat.matrix_t(mouth.width, mouth.height, jsfeat.U8_t | jsfeat.C1_t);
 
-					if(this.debug > 0) this.lipCanvasCtx.putImageData( smallImageData, 0,0, 0,0,mouth.width, mouth.height);
+					if(this.debug > 0) this.lipCanvasCtx.putImageData( smallImageData, 0,0, 0,0, mouth.width, mouth.height);
+					//if(this.debug > 0) this.lipCanvasCtx.putImageData( smallImageData, this.width-mouth.width-mouth.x,mouth.y, 0,0, mouth.width, mouth.height);
 
 					jsfeat.imgproc.grayscale(smallImageData.data, small_img_u8.data);
 
-					jsfeat.imgproc.box_blur_gray(small_img_u8, small_img_u8, 4, 0); // XXX ??
+					jsfeat.imgproc.box_blur_gray(small_img_u8, small_img_u8, 2, 0); // XXX ??
 
 					jsfeat.yape06.laplacian_threshold = this.laplacian;
 					jsfeat.yape06.min_eigen_value_threshold = 1;
@@ -218,17 +233,18 @@ var LipDetector = {
 			
 
 					this.lipCanvasCtx.strokeStyle = "white";
-					var cx = mouth.width/2;
-					var cy = mouth.height/2;
+					var cx = mouth.width/2.;
+					var cy = mouth.height/2.;
 					var md = cy;
 					for(var i=0; i<count; i++ ) {
 						var d = Math.sqrt(Math.pow(this.corners[i].x-cx,2)+Math.pow(this.corners[i].y-cy,2));
 						if(this.debug > 0) {
-							this.lipCanvasCtx.globalAlpha = 1-Math.pow(Math.min(d,md)/md,1.1);
+							var prio = 1-Math.pow(Math.min(d,md)/md,1.1);
+							this.lipCanvasCtx.globalAlpha = prio;
 							this.lipCanvasCtx.strokeRect(mouth.x+this.corners[i].x,mouth.y+this.corners[i].y, 1,1);
 						}
 					}
-					this.webcamCanvasCtx.globalAlpha = 1;
+					this.lipCanvasCtx.globalAlpha = 1;
 
 
 				} else {
