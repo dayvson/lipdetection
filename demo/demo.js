@@ -7,6 +7,9 @@ $(function(){
     var loadVideo = function(url){
         LipDetector.stop();
         LipDetector.webcam = webcam;
+        LipDetector.webcam.addEventListener('onend', function(){
+            LipDetector.webcam.src = url;    
+        });
         LipDetector.webcam.src = url;
         LipDetector.webcam.load();
         LipDetector.webcam.play();
@@ -51,7 +54,8 @@ $(function(){
             }
         );
     }
-    initWebcam();
+    webcam.src = "videos/10.mp4";
+    setTimeout(initDemo, 500);
     $(window).unload(function() {
         webcam.pause();
         webcam.src = null;
