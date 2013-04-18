@@ -19,7 +19,7 @@ var LipDetector = {
 	},
 
     init:function(webcam, webcamCanvas, lipCanvas){
-		this.debug = 1;
+		this.debug = 3;
 
         this.webcam = webcam;
         this.webcamCanvas = webcamCanvas;
@@ -136,13 +136,13 @@ var LipDetector = {
 				upper_face.x      = face.x - face.width*0.1;
 				upper_face.width  = face.width * 1.2;
 
-				eye_mask = { x:face.x-face.width*0.25, y:face.y, width:face.width*1.5, height:face.y+face.height*0.5 };
+				eye_mask = { x:face.x, y:face.y, width:face.width, height:face.y+face.height*0.5 };
 			} else {
 				lower_face = {};
-				lower_face.y      = this.height*0.1;
-				lower_face.height = this.height*0.8;
-				lower_face.x      = this.width*0.1;
-				lower_face.width  = this.width*0.8;
+				lower_face.y      = this.height*0.3;
+				lower_face.height = this.height*0.5;
+				lower_face.x      = this.width*0.2;
+				lower_face.width  = this.width*0.6;
 				work = this.large_work_area;
 			}
 			this.draw_match(this.lipCanvasCtx, lower_face, "green");
@@ -157,6 +157,10 @@ var LipDetector = {
 					mouth.x = Math.ceil(lower_face.x + lower_face.width * 0.2);
 					mouth.width = Math.ceil(lower_face.width * 0.6);
 				}
+			}
+			if(mouth) {
+				mouth.y -= mouth.height*0.2;
+				mouth.height *= 1.25;
 			}
 			this.draw_match(this.lipCanvasCtx, mouth, this.color);
 
