@@ -1,4 +1,7 @@
 var LipDetector = {
+	reset: function() {
+	   this.point_count = 0;;
+	},
 	create_work_area: function(max_work_size) {
 		var that = {};
 		that.scale = Math.min(max_work_size/this.width, max_work_size/this.height);
@@ -53,6 +56,27 @@ var LipDetector = {
 		this.confidence = 0.5;
 		this.color = "black";
 		this.block = { x:0, y:0, width:this.width, height:0 };
+
+
+		{ // optical flow track ////////////////////////////////
+
+			this.win_size = 30;
+			this.max_iterations = 30;
+			this.epsilon = 0;
+			this.min_eigen = 0;
+
+			this.curr_img_pyr = new jsfeat.pyramid_t(3);
+			this.prev_img_pyr = new jsfeat.pyramid_t(3);
+			this.curr_img_pyr.allocate(640, 480, jsfeat.U8_t|jsfeat.C1_t);
+			this.prev_img_pyr.allocate(640, 480, jsfeat.U8_t|jsfeat.C1_t);
+
+			this.point_max_count = 100;
+			this.point_count = 0;
+			this.point_status = new Uint8Array(this.point_max_count);
+			this.prev_xy = new Float32Array(this.point_max_count*2);
+			this.curr_xy = new Float32Array(this.point_max_count*2);
+		}
+
     },
 
 	haar:function(classifier, image, roi, work){
@@ -96,6 +120,25 @@ var LipDetector = {
 		return rects;
 	},
 
+	
+	 prune_oflow_points: function(ctx) {
+		 var n = this.point_count;
+		 var i=0,j=0;
+
+		 for(; i < n; ++i) {
+			 if(this.point_status[i] == 1) {
+				 if(j < i) {
+					 this.curr_xy[j<<1] = this.curr_xy[i<<1];
+					 this.curr_xy[(j<<1)+1] = this.curr_xy[(i<<1)+1];
+				 }
+				 ctx.strokeStyle = 'yellow';
+				 ctx.strokeRect(this.curr_xy[j<<1]-1, this.curr_xy[(j<<1)+1]-1,3,3);
+				 ++j;
+			 }
+		 }
+		 this.point_count = j;
+	 },
+
 	 draw_match: function (ctx, r, color) {
 		 if(this.debug > 1 && r) {
 			ctx.strokeStyle = color;
@@ -116,6 +159,8 @@ var LipDetector = {
 			this.webcamCanvasCtx.drawImage(this.webcam, 0, 0, this.width, this.height);
 			this.webcamCanvasCtx.globalAlpha = 1;
 
+
+			// region detection ////////////////////////////////////
 			var face = this.haar(jsfeat.haar.frontalface, this.webcam)[0];
 			this.draw_match(this.lipCanvasCtx, face, "red");
 
@@ -217,9 +262,7 @@ var LipDetector = {
 					this.draw_match(this.lipCanvasCtx, mouth, "magenta");
 
 
-					// XXX god help us
-
-					// FIXME not always aligned  (diagonal lines)
+					// feature detection //////////////////////////////
 					var smallImageData = this.webcamCanvasCtx.getImageData( mouth.x, mouth.y, mouth.width, mouth.height );
 					//var smallImageData = this.webcamCanvasCtx.getImageData( this.width-mouth.width-mouth.x, mouth.y, mouth.width, mouth.height );
 					var small_img_u8 = new jsfeat.matrix_t(mouth.width, mouth.height, jsfeat.U8_t | jsfeat.C1_t);
@@ -252,8 +295,17 @@ var LipDetector = {
 						if(this.debug > 0) {
 							var center = 1-Math.pow(Math.min(d,md)/md,1.1);
 							var score = Math.min(1,this.corners[i].score/64.);
-							this.lipCanvasCtx.globalAlpha = center*score;
+							var prio = center* score;
+							this.lipCanvasCtx.globalAlpha = prio;
 							this.lipCanvasCtx.strokeRect(mouth.x+this.corners[i].x,mouth.y+this.corners[i].y, 1,1);
+
+							if(prio > 0.90 && this.point_count < this.point_max_count) { 
+								// TODO match feature points to the base shape vertexes
+								// TODO only track the vertexes of the base shape
+								this.curr_xy[this.point_count<<1] = mouth.x+this.corners[i].x;
+								this.curr_xy[(this.point_count<<1)+1] = mouth.y+this.corners[i].y;
+								this.point_count++;
+							}
 						}
 					}
 					this.lipCanvasCtx.globalAlpha = 1;
@@ -264,6 +316,28 @@ var LipDetector = {
 				}
 			}
             
+
+			{ // optical flow track ////////////////////////////////
+
+				// swap flow data
+				var _pt_xy = this.prev_xy;
+				this.prev_xy = this.curr_xy;
+				this.curr_xy = _pt_xy;
+				var _pyr = this.prev_img_pyr;
+				this.prev_img_pyr = this.curr_img_pyr;
+				this.curr_img_pyr = _pyr;
+
+				var imageData = this.webcamCanvasCtx.getImageData( 0,0, this.width,this.height);
+
+				jsfeat.imgproc.grayscale(imageData.data, this.curr_img_pyr.data[0].data);
+
+				this.curr_img_pyr.build(this.curr_img_pyr.data[0], true);
+
+				jsfeat.optical_flow_lk.track(this.prev_img_pyr, this.curr_img_pyr, this.prev_xy, this.curr_xy,
+					this.point_count, this.win_size|0, this.max_iterations|0, this.point_status, this.epsilon, this.min_eigen);
+
+				this.prune_oflow_points(this.lipCanvasCtx);
+			}
 
         }
 

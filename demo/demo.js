@@ -25,6 +25,7 @@ $(function(){
             }else{
                 loadVideo(this.firstChild.getAttribute('data-video'));
             }
+			LipDetector.reset();
         });
     });
     
