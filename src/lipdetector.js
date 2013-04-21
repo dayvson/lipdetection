@@ -11,9 +11,8 @@ var LipDetector = {
 		this.color = "black";
 		this.block = { x:0, y:0, width:this.width, height:0 };
 	},
-	createWorkArea: function(maxWorkSize, width, height) {
-		var  workArea = {}, h, w;
-		workArea.scale = Math.min(maxWorkSize/width, maxWorkSize/height);
+	createWorkArea: function(scale, width, height) {
+		var  workArea = {scale:1./scale}, h, w;
 		w = (width *  workArea.scale) |0;
 		h = (height *  workArea.scale)|0;
 		workArea.canvas = document.createElement('canvas');
@@ -51,8 +50,8 @@ var LipDetector = {
 		this.curr_xy = new Float32Array(this.point_max_count * 2);
 	},
     init:function(webcam, webcamCanvas, lipCanvas){
-		this.debug = 1;
-		this.use_canny = true;
+		this.debug = 3;
+		this.use_canny = false;
 
         this.webcam = webcam;
         this.webcamCanvas = webcamCanvas;
@@ -62,8 +61,8 @@ var LipDetector = {
 		this.width = this.webcam.videoWidth;
 		this.height = this.webcam.videoHeight;
 
-		this.small_work_area = this.createWorkArea(100, this.width, this.height);
-		this.large_work_area = this.createWorkArea(200, this.width, this.height);
+		this.small_work_area = this.createWorkArea(6, this.width, this.height);
+		this.large_work_area = this.createWorkArea(3, this.width, this.height);
 		this.corners = this.fillCorners(this.width, this.height);
 		this.reset();
 		this.initOpticalFlow();
@@ -162,11 +161,11 @@ var LipDetector = {
 	getLowerFaceArea:function(face){
 		var area = {y: Math.round(this.height * 0.3), 
 					height: Math.round(this.height * 0.5),
-					x: Math.round(this.width * 0.2), 
-					width: Math.round(this.width * 0.6)};
+					x: Math.round(this.width * 0.25), 
+					width: Math.round(this.width * 0.5)};
 		if(face){
-			area.y      = Math.round(face.y + face.height * 0.6);
-			area.height = Math.round(face.height * 0.4);
+			area.y      = Math.round(face.y + face.height * 0.65);
+			area.height = Math.round(face.height * 0.5);
 			area.x      = Math.round(face.x + face.width * 0.1);
 			area.width  = Math.round(face.width * 0.8);
 		}
@@ -243,7 +242,7 @@ var LipDetector = {
 
 		if(this.debug > 0) {
 			this.lipCanvasCtx.globalAlpha = 1;
-			this.lipCanvasCtx.putImageData(smallImageData, 0, 0, 0, 0, mouth.width, mouth.height);
+			this.lipCanvasCtx.putImageData(smallImageData, 0, 0);
 
 			var small_img_u32 = new Uint32Array(smallImageData.data.buffer);
 			var alpha = (0xff << 24);
@@ -253,7 +252,7 @@ var LipDetector = {
 				small_img_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
 			}
 
-			this.lipCanvasCtx.putImageData(smallImageData, mouth.width, 0, 0, 0, mouth.width, mouth.height);
+			this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width, 0);
 		}
 
 
