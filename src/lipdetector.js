@@ -305,7 +305,7 @@ var LipDetector = {
 		return Math.sqrt( Math.pow( a.x - b.x, 2) + Math.pow(a.y - b.y, 2) );
 	},
 	processFeatures:function(mouth, corners, countCorners, callback){
-		var point, centerMouth, max_dist, centralized, score, i, dist;
+		var point, centerMouth, max_dist, centralized, score, i, j, k, dist;
 		centerMouth = {x: mouth.width / 2.0, y: mouth.height / 2.0};
 		max_dist = centerMouth.y;
 
@@ -320,7 +320,8 @@ var LipDetector = {
 		median /= countCorners;
 		
 		//corners.sort(function(a,b) { return a.x-b.x; })
-
+	
+		var selected = [];
 		for(i = 0; i < countCorners; i++ ) {
 			score = Math.min(1, corners[i].score / 32.0);
 			dist = this.getDistance(corners[i], centerMouth);
@@ -344,10 +345,30 @@ var LipDetector = {
 				this.curr_xy[(this.point_count<<1)+1] = point.y;
 				this.point_count++;
 			}
+
+			if(point.prio > 0.01) {
+				selected.push(point);
+			}
+
 		}
-		if(this.debug > 0) {
-			this.lipCanvasCtx.globalAlpha = 1;
+
+		this.lipCanvasCtx.globalAlpha = 1;
+		for(i = 0; i < selected.length; i++ ) {
+			for(j = 0; j < selected.length; j++ ) {
+				for(k = 0; k < selected.length; k++ ) {
+					var alpha = Math.min(Math.min(selected[i].prio,selected[j].prio),selected[k].prio)*0.05;
+					this.lipCanvasCtx.fillStyle = "rgba(255, 0, 0, "+alpha+")";
+
+					this.lipCanvasCtx.beginPath();
+					this.lipCanvasCtx.moveTo(selected[i].x, selected[i].y);
+					this.lipCanvasCtx.lineTo(selected[j].x, selected[j].y);
+					this.lipCanvasCtx.lineTo(selected[k].x, selected[k].y);
+					this.lipCanvasCtx.closePath();
+					this.lipCanvasCtx.fill();
+				}
+			}
 		}
+
 	},
 	matchMouthModel:function(mouth){
 		var self = this, features, intersect;
