@@ -143,7 +143,7 @@ var LipDetector = {
 			ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
 		}
 	},
-	renderOpticalFlow:function(){
+	trackMouthModel:function(){
 		var imageData, _pt_xy, _pyr;
 
 		_pt_xy = this.prev_xy;
@@ -291,24 +291,30 @@ var LipDetector = {
 	getDistance:function(a, b){
 		return Math.sqrt( Math.pow( a.x - b.x, 2) + Math.pow(a.y - b.y, 2) );
 	},
-	drawFeatures:function(mouth, corners, countCorners, callback){
-		var centerMouth, md, center, score, prio, i = 0, dis;
+	foreachFeature:function(mouth, corners, countCorners, callback){
+		var point, centerMouth, md, center, score, i, dist;
 		centerMouth = {x: mouth.width / 2.0, y: mouth.height / 2.0};
 		md = centerMouth.y;
-		for(i; i < countCorners; i++ ) {
-			dis = this.getDistance(corners[i], centerMouth);
-			center = 1-Math.pow(Math.min(dis, md) / md, 1.1);
+		for(i = 0; i < countCorners; i++ ) {
+			dist = this.getDistance(corners[i], centerMouth);
+			center = 1-Math.pow(Math.min(dist, md) / md, 1.1);
 			score = Math.min(1, corners[i].score / 64.0);
-			prio = center * score;
+			point = {
+				x: corners[i].x + mouth.x,
+				y: corners[i].y + mouth.y,
+				prio: center * score
+			};
 			if(this.debug > 0) {
-				this.lipCanvasCtx.globalAlpha = prio;
-				this.lipCanvasCtx.strokeRect(mouth.x + corners[i].x, mouth.y + corners[i].y, 1, 1);
+				this.lipCanvasCtx.globalAlpha = point.prio;
+				this.lipCanvasCtx.strokeRect(point.x, point.y, 1, 1);
 			}
-			callback(prio, score, mouth, corners[i]);
+			callback(point);
 		}
-		this.lipCanvasCtx.globalAlpha = 1;
+		if(this.debug > 0) {
+			this.lipCanvasCtx.globalAlpha = 1;
+		}
 	},
-	drawMouthPoints:function(mouth){
+	matchMouthModel:function(mouth){
 		var self = this, features, intersect;
 		this.confidence = this.confidence * 0.9 + mouth.confidence * 0.1;
 		intersect = this.isIntersected(this.block, mouth);
@@ -318,19 +324,18 @@ var LipDetector = {
 			this.laplacian = features.laplacian;
 			this.corners = features.corners;
 			this.lipCanvasCtx.strokeStyle = "white";
-			this.drawFeatures(mouth, this.corners, features.count, function(prio, score, mouth, corner){
-				if(prio > 0.90 && self.point_count < self.point_max_count) { 
+			this.foreachFeature(mouth, this.corners, features.count, function(point){
+				if(point.prio > 0.90 && self.point_count < self.point_max_count) { 
 					// TODO match feature points to the base shape vertexes
 					// TODO only track the vertexes of the base shape
-					self.curr_xy[self.point_count<<1] = mouth.x + corner.x;
-					self.curr_xy[(self.point_count<<1)+1] = mouth.y + corner.y;
+					self.curr_xy[self.point_count<<1] = point.x;
+					self.curr_xy[(self.point_count<<1)+1] = point.y;
 					self.point_count++;
 				}
 			});
 		} else {
 			//console.log("failed: " + mouth.confidence +  " >= " + this.confidence + " && "+ (!intersect));
 		}
-		this.renderOpticalFlow();
 	},
     tick:function(){
     	var face, lower_face, upper_face, eye_mask, work, mouth, eyes;
@@ -365,7 +370,8 @@ var LipDetector = {
 			this.block = this.getEyesAndUpperFaceUnionArea(eyes, face, upper_face, this.block);
 			this.drawRectangle(this.lipCanvasCtx, this.block, "black");
 
-			this.drawMouthPoints(mouth);
+			this.matchMouthModel(mouth);
+			this.trackMouthModel();
         }
     },
     captureLips:function(){
