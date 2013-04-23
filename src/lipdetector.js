@@ -1,63 +1,52 @@
-function getDistant(cpt, bl) {
-    Vy = bl[1].y - bl[0].y;
-    Vx = bl[0].x - bl[1].x;
-    return (Vx * (cpt.y - bl[0].y) + Vy * (cpt.x -bl[0].x))
-}
-
-function findMostDistantPointFromBaseLine(baseLine, points) {
-    var maxD = 0;
-    var maxPt;
-    var newPoints = new Array();
-    for (var idx in points) {
-        var pt = points[idx];
-        var d = getDistant(pt, baseLine);
-
-        if ( d > 0) {
-            newPoints.push(pt);
-        } else {
-            continue;
-        }
-
-        if ( d > maxD ) {
-            maxD = d;
-            maxPt = pt;
-        }
-
-    }
-    return {'maxPoint':maxPt, 'newPoints':newPoints}
-}
-
-function buildConvexHull(baseLine, points) {
-
-    var convexHullBaseLines = new Array();
-    var t = findMostDistantPointFromBaseLine(baseLine, points);
-    if (t.maxPoint) {
-        convexHullBaseLines = convexHullBaseLines.concat( buildConvexHull( [baseLine[0],t.maxPoint], t.newPoints) );
-        convexHullBaseLines = convexHullBaseLines.concat( buildConvexHull( [t.maxPoint,baseLine[1]], t.newPoints) );
-        return convexHullBaseLines;
-    } else {
-        return [baseLine];
-    }
-}
-
-function getConvexHull(points) {
-    //find first baseline
-    var maxX, minX;
-    var maxPt, minPt;
-    for (var idx in points) {
-        var pt = points[idx];
-        if (pt.x > maxX || !maxX) {
-            maxPt = pt;
-            maxX = pt.x;
-        }
-        if (pt.x < minX || !minX) {
-            minPt = pt;
-            minX = pt.x;
-        }
-    }
-    var convexhull = [].concat(buildConvexHull([minPt, maxPt], points),
-                       buildConvexHull([maxPt, minPt], points))
-    return convexhull;
+var ConvexHull = {
+	getDistance:function(point, baseline){
+		var vx, vy;
+		vx = baseline[0].x - baseline[1].x;
+    	vy = baseline[1].y - baseline[0].y;
+    	return (vx * (point.y - baseline[0].y) + vy * (point.x - baseline[0].x))
+	},
+	findMostDistantPointFromBaseLine:function(baseLine, points) {
+	    var maxD = 0, maxPt, newPoints = [], currentPoint, dist;
+	    for (var idx in points) {
+	        currentPoint = points[idx];
+	        dist = this.getDistance(currentPoint, baseLine);
+	        if ( dist <= 0) continue;
+			newPoints.push(currentPoint);	
+	        if ( dist > maxD ) {
+	            maxD = dist;
+	            maxPt = currentPoint;
+	        }
+	    }
+	    return {'maxPoint':maxPt, 'newPoints':newPoints};
+	},
+	build:function(baseLine, points) {
+	    var convexHullBaseLines = [], result;
+	    result = this.findMostDistantPointFromBaseLine(baseLine, points);
+	    if (result.maxPoint) {
+	        convexHullBaseLines = convexHullBaseLines.concat( this.build( [baseLine[0], result.maxPoint], result.newPoints) );
+	        convexHullBaseLines = convexHullBaseLines.concat( this.build( [result.maxPoint, baseLine[1]], result.newPoints) );
+	        return convexHullBaseLines;
+	    } else {
+	        return [baseLine];
+	    }
+	},
+	get:function(points){
+		var maxX, minX, maxPt, minPt, currentPoint, i, convexhull;
+	    for (i in points) {
+	        currentPoint = points[i];
+	        if (currentPoint.x > maxX || !maxX) {
+	            maxPt = currentPoint;
+	            maxX = currentPoint.x;
+	        }
+	        if (currentPoint.x < minX || !minX) {
+	            minPt = currentPoint;
+	            minX = currentPoint.x;
+	        }
+	    }
+	    convexhull = [].concat(this.build([minPt, maxPt], points),
+	                       this.build([maxPt, minPt], points))
+	    return convexhull;
+	}
 }
 
 var LipDetector = {
@@ -278,7 +267,7 @@ if(1) {
 			central.push(universe[i]);
 		}
 		if(central.length > 4) {
-			var convexhull = getConvexHull(central);
+			var convexhull = ConvexHull.get(central);
 			for(i = 0; i < universe.length; ++i) {
 				var found = 0;
 				for(j = 0; j < convexhull.length; ++j) {
@@ -347,7 +336,7 @@ if(1) {
 
 		var min_points = 9;
 		if(cloud.length > min_points) {
-			var convexhull = getConvexHull(cloud);
+			var convexhull = ConvexHull.get(cloud);
 			if(convexhull.length > min_points) {
 				this.convexhull = convexhull;
 			}
@@ -585,7 +574,7 @@ if(1) {
 		}
 
 		// match feature points to the base shape vertexes
-		var convexhull = getConvexHull(selected);
+		var convexhull = ConvexHull.get(selected);
 
 		for(i=0; i < convexhull.length; i++ ) {
 			if(this.point_count < this.point_max_count) { 
