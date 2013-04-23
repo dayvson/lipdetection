@@ -65,7 +65,7 @@ var LipDetector = {
 		this.mouth = {x:this.width/2, y:this.height/2, width:0, height:0};
 		this.convexhull = [];
 
-		this.base_shape = {
+		this.base_shape = [
 			{x: 0, y: 1}, // a
 			{x: 1, y: 0}, // b
 			{x: 1.5, y: 0.2}, // c
@@ -74,12 +74,14 @@ var LipDetector = {
 			{x: 2, y: 1.8}, // f
 			{x: 1.5, y: 2}, // g
 			{x: 1, y: 1.8} // h
-		};
+		];
 
+		this.top_webcam;
 		this.top_score = 0;
 		this.top_contour = [];
 		this.top_canny;
 		this.top_roi;
+		this.top_countdown = this.top_countdown_max;
 		this.pause = false;
 	},
 	createWorkArea: function(scale, width, height) {
@@ -119,6 +121,8 @@ var LipDetector = {
 		this.point_status = new Uint8Array(this.point_max_count);
 		this.prev_xy = new Float32Array(this.point_max_count * 2);
 		this.curr_xy = new Float32Array(this.point_max_count * 2);
+
+		this.top_countdown_max = 120;
 	},
     init:function(webcam, webcamCanvas, lipCanvas){
 		this.debug = 1;
@@ -395,8 +399,8 @@ var LipDetector = {
 			var min_scale = base_scale;
 			var max_scale = base_scale+0.2;
 			if(this.debug > 0) {
-				this.lipCanvasCtx.globalAlpha = 0.25;
-				this.lipCanvasCtx.fillStyle = "red";
+				this.lipCanvasCtx.globalAlpha = 1;
+				this.lipCanvasCtx.strokeStyle = "red";
 				this.lipCanvasCtx.beginPath();
 			}
 
@@ -437,7 +441,7 @@ var LipDetector = {
 
 			if(this.debug > 0) {
 				this.lipCanvasCtx.closePath();
-				this.lipCanvasCtx.fill();
+				this.lipCanvasCtx.stroke();
 			}
 
 			var roi = {
@@ -531,9 +535,10 @@ var LipDetector = {
 			this.top_score = score;
 			this.top_contour = contour;
 			this.top_canny = smallImageData;
+			this.top_webcam = this.webcamCanvasCtx.getImageData( 0, 0, this.width, this.height);
 			this.top_roi = roi;
+			this.top_countdown = this.top_countdown_max;
 		}
-
 
 ///////////////////
 		if(this.top_contour[0] && this.top_canny) {
@@ -568,12 +573,29 @@ var LipDetector = {
 				this.lipCanvasCtx.closePath();
 				this.lipCanvasCtx.stroke();
 			}
+
+///
+				this.lipCanvasCtx.globalAlpha = 0.3;
+				this.lipCanvasCtx.fillStyle = "magenta";
+				this.lipCanvasCtx.beginPath();
+
+				for(i=0; i < this.top_contour.length; i++ ) {
+					var x = this.top_contour[i].x;
+					var y = this.top_contour[i].y;
+
+					if(!i) this.lipCanvasCtx.moveTo(x,y);
+					else this.lipCanvasCtx.lineTo(x,y);
+				}
+
+				this.lipCanvasCtx.closePath();
+				this.lipCanvasCtx.fill();
+
 		}
 
 ///////////////////////
 
-		console.log(score, this.top_score);
-		return false;
+		console.log(score, this.top_score, this.top_countdown);
+		return this.top_countdown-- < 0;
 	},
 
 	drawRectangle: function (ctx, rect, color) {
@@ -830,7 +852,26 @@ var LipDetector = {
 			LipDetector.tick();
         });
 
-		if(this.pause) return;
+		if(this.pause) {
+			this.lipCanvasCtx.globalAlpha = 1;
+			this.lipCanvasCtx.drawImage(this.top_webcam, 0,0);
+
+			this.lipCanvasCtx.globalAlpha = 0.3;
+			this.lipCanvasCtx.fillStyle = "magenta";
+			this.lipCanvasCtx.beginPath();
+
+			for(i=0; i < this.top_contour.length; i++ ) {
+				var x = this.top_contour[i].x;
+				var y = this.top_contour[i].y;
+
+				if(!i) this.lipCanvasCtx.moveTo(x,y);
+				else this.lipCanvasCtx.lineTo(x,y);
+			}
+
+			this.lipCanvasCtx.closePath();
+			this.lipCanvasCtx.fill();
+			return;
+		}
 
         if (this.webcam.readyState === this.webcam.HAVE_ENOUGH_DATA || this.useImage) {
 			this.debugPos = 0;
@@ -866,6 +907,7 @@ var LipDetector = {
 			if(this.testPuckerMatch()) {
 				console.log("done")
 				this.pause = true;
+
 			}
         }
     },
