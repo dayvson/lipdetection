@@ -64,6 +64,22 @@ var LipDetector = {
 
 		this.mouth = {x:this.width/2, y:this.height/2, width:0, height:0};
 		this.convexhull = [];
+
+		this.base_shape = {
+			{x: 0, y: 1}, // a
+			{x: 1, y: 0}, // b
+			{x: 1.5, y: 0.2}, // c
+			{x: 2, y: 0}, // d
+			{x: 3, y: 1}, // e
+			{x: 2, y: 1.8}, // f
+			{x: 1.5, y: 2}, // g
+			{x: 1, y: 1.8} // h
+		};
+
+		this.top_score = 0;
+		this.top_contour = [];
+		this.top_canny;
+		this.top_roi;
 		this.pause = false;
 	},
 	createWorkArea: function(scale, width, height) {
@@ -284,7 +300,7 @@ var LipDetector = {
 
 		// remove duplicates (too close)
 		// TODO avoid removing from the edges
-		var min_dist = 3;
+		var min_dist = 1;
 		for(i=0; i< universe.length; i++) {
 			if(!this.point_status[i]) continue;
 			for(j=0; j< universe.length; j++) {
@@ -329,60 +345,23 @@ var LipDetector = {
 		var sy = (y0 < y1) ? 1 : -1;
 		var err = dx-dy;
 
+		var value = 0;
 		var count = 0;
 		while(true){
 			var i = y0*img.cols + x0;
 			var pixel = img.data[i];
-			count += pixel;
+			value += pixel;
+			count ++;
 
 			if ((x0==x1) && (y0==y1)) break;
 			var e2 = 2*err;
 			if (e2 >-dy){ err -= dy; x0  += sx; }
 			if (e2 < dx){ err += dx; y0  += sy; }
 		}
-		return count / 255.;
+		return value / count / 255.;
 	},
 	testPuckerMatch: function() {
-		// TODO select points over the edges of canny
-
-		var smallImageData, small_img_u8;
-
-		var base_min_scale = 0.5;
-		var base_max_scale = 0.9;
-		var base_scale = Math.random()*(base_max_scale - base_min_scale) + base_min_scale;
-		var min_scale = base_scale;
-		var max_scale = base_scale+0.2;
-		var roi = {
-			x: Math.round(this.mouth.x - this.mouth.width * (max_scale-1)),
-			y: Math.round(this.mouth.y - this.mouth.height * (max_scale-1)),
-			width: Math.round(this.mouth.width * (1+(max_scale-1)*2)),
-			height: Math.round(this.mouth.height * (1+(max_scale-1)*2))
-		};
-
-		if(roi.width == 0 || roi.height == 0) return 0;
-		smallImageData = this.webcamCanvasCtx.getImageData( roi.x, roi.y, roi.width, roi.height );
-		small_img_u8 = new jsfeat.matrix_t(roi.width, roi.height, jsfeat.U8_t | jsfeat.C1_t);
-
-		jsfeat.imgproc.grayscale(smallImageData.data, small_img_u8.data);
-		jsfeat.imgproc.equalize_histogram(small_img_u8, small_img_u8);
-		jsfeat.imgproc.gaussian_blur(small_img_u8, small_img_u8, 12, 0);
-		jsfeat.imgproc.canny(small_img_u8, small_img_u8, 24, 42);
-
-		if(this.debug > 0) {
-			this.lipCanvasCtx.globalAlpha = 1;
-			this.lipCanvasCtx.putImageData(smallImageData, 0, this.height-smallImageData.height);
-
-			var small_img_u32 = new Uint32Array(smallImageData.data.buffer);
-			var alpha = (0xff << 24);
-			var i = small_img_u8.cols*small_img_u8.rows, pix = 0;
-			while(--i >= 0) {
-				pix = small_img_u8.data[i];
-				small_img_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
-			}
-
-			this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width, this.height-smallImageData.height);
-		}
-
+		// select points over the edges of canny
 
 		var cloud = [];
 		for(i = 0; i < this.point_count; ++i) {
@@ -404,44 +383,197 @@ var LipDetector = {
 
 		var score = 0;
 		if(this.convexhull.length) {
+
+			var x0 = this.width-1;
+			var y0 = this.height-1;
+			var x1 = 0;
+			var y1 = 0;
+
+			var base_min_scale = 0.333;
+			var base_max_scale = 0.999;
+			var base_scale = Math.random()*(base_max_scale - base_min_scale) + base_min_scale;
+			var min_scale = base_scale;
+			var max_scale = base_scale+0.2;
 			if(this.debug > 0) {
 				this.lipCanvasCtx.globalAlpha = 0.25;
 				this.lipCanvasCtx.fillStyle = "red";
 				this.lipCanvasCtx.beginPath();
 			}
 
-			var cx = roi.x + roi.width/2;
-			var cy = roi.y + roi.height/2;
-			var last_x, last_y;
+			var cx = this.mouth.x + this.mouth.width/2;
+			var cy = this.mouth.y + this.mouth.height/2;
+			var contour_scale = []
+			var n = this.convexhull.length;
+			for(i=0; i < n; i++ ) {
+				contour_scale[i] = Math.random()*(max_scale-min_scale) + min_scale;
+			}
+			
+			var contour_scale_smooth = [];
+			for(i=0; i < n; i++ ) {
+				var i0 = (i-1+n) % n;
+				var i1 = (i) % n;
+				var i2 = (i+1) % n;
+				contour_scale_smooth[i] = contour_scale[i0] * 0.2 + contour_scale[i1] * 0.6 + contour_scale[i2] * 0.2;
+			}
+
+			var contour = [];
 			for(i=0; i < this.convexhull.length; i++ ) {
-				var scale = Math.random()*(max_scale-min_scale) + min_scale;
+				var scale = contour_scale_smooth[i];
 				var x = Math.round((this.convexhull[i][0].x - cx)*scale+cx),
 				    y = Math.round((this.convexhull[i][0].y - cy)*scale+cy);
 
-				if(i) {
-					score += this.checkLine(small_img_u8, last_x-roi.x, last_y-roi.y, x-roi.x, y-roi.y)
-				}
-				last_x = x;
-				last_y = y;
+				if(x < x0) x0 = x;
+				if(y < y0) y0 = y;
+				if(x > x1) x1 = x;
+				if(y > y1) y1 = y;
 
+				contour.push({x:x,y:y});
 
 				if(this.debug > 0) {
 					if(!i) this.lipCanvasCtx.moveTo(x,y);
 					else this.lipCanvasCtx.lineTo(x,y);
 				}
 			}
+
 			if(this.debug > 0) {
 				this.lipCanvasCtx.closePath();
 				this.lipCanvasCtx.fill();
 			}
 
-			score /= this.convexhull.length;
+			var roi = {
+				x: x0-1,
+				y: y0-1,
+				width: x1-x0+2,
+				height: y1-y0+2
+			};
+
+			var smallImageData, small_img_u8;
+			if(roi.width == 0 || roi.height == 0) return 0;
+			smallImageData = this.webcamCanvasCtx.getImageData( roi.x, roi.y, roi.width, roi.height );
+			small_img_u8 = new jsfeat.matrix_t(roi.width, roi.height, jsfeat.U8_t | jsfeat.C1_t);
+
+			jsfeat.imgproc.grayscale(smallImageData.data, small_img_u8.data);
+			jsfeat.imgproc.equalize_histogram(small_img_u8, small_img_u8);
+			jsfeat.imgproc.gaussian_blur(small_img_u8, small_img_u8, 24, 0);
+			jsfeat.imgproc.canny(small_img_u8, small_img_u8, 16, 72);
+			jsfeat.imgproc.gaussian_blur(small_img_u8, small_img_u8, 8, 0);
+
+			if(this.debug > 0) {
+				this.lipCanvasCtx.globalAlpha = 1;
+				this.lipCanvasCtx.putImageData(smallImageData, 0, this.height-smallImageData.height);
+
+				var small_img_u32 = new Uint32Array(smallImageData.data.buffer);
+				var alpha = (0xff << 24);
+				var i = small_img_u8.cols*small_img_u8.rows, pix = 0;
+				while(--i >= 0) {
+					pix = small_img_u8.data[i];
+					small_img_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
+				}
+
+				this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width, this.height-smallImageData.height);
+				this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width*2, this.height-smallImageData.height);
+			}
+
+
+			// smooth contour
+			for(i=1; i < contour.length; i++ ) {
+				var x = contour[i].x;
+				var y = contour[i].y;
+
+			}
+
+				
+
+			// rank contour
+
+			var last_x = contour[0].x, last_y = contour[0].y;
+
+			if(this.debug > 0) {
+				this.lipCanvasCtx.globalAlpha = 1;
+				this.lipCanvasCtx.strokeStyle = "red";
+				this.lipCanvasCtx.beginPath();
+				this.lipCanvasCtx.moveTo(
+					last_x-roi.x+smallImageData.width*2, 
+					last_y-roi.y+this.height-smallImageData.height
+					);
+
+			}
+
+			for(i=1; i < contour.length; i++ ) {
+				var x = contour[i].x;
+				var y = contour[i].y;
+
+				score += this.checkLine(small_img_u8, 
+					last_x-roi.x, 
+					last_y-roi.y, 
+					x-roi.x, 
+					y-roi.y
+				);
+				if(this.debug > 0) {
+					this.lipCanvasCtx.lineTo(
+						x-roi.x+smallImageData.width*2, 
+						y-roi.y+this.height-smallImageData.height
+					);
+				}
+			}
+			score /= (contour.length-1);
+
+			if(this.debug > 0) {
+				this.lipCanvasCtx.closePath();
+				//this.lipCanvasCtx.globalCompositeOperation = 'xor';
+				this.lipCanvasCtx.stroke();
+				//this.lipCanvasCtx.globalCompositeOperation = 'source-over';
+			}
+
 		}
 
-		var target_score = .95;
+		if(score > this.top_score) {
+			this.top_score = score;
+			this.top_contour = contour;
+			this.top_canny = smallImageData;
+			this.top_roi = roi;
+		}
 
-		console.log(score);
-		return score >= target_score;
+
+///////////////////
+		if(this.top_contour[0] && this.top_canny) {
+			
+			last_x = this.top_contour[0].x, last_y = this.top_contour[0].y;
+
+			if(this.debug > 0) {
+				this.lipCanvasCtx.globalAlpha = 1;
+				this.lipCanvasCtx.putImageData(this.top_canny, this.width-this.top_canny.width, this.height-this.top_canny.height);
+				this.lipCanvasCtx.strokeStyle = "magenta";
+				this.lipCanvasCtx.beginPath();
+				this.lipCanvasCtx.moveTo(
+					last_x-this.top_roi.x+this.width-this.top_canny.width, 
+					last_y-this.top_roi.y+this.height-this.top_canny.height
+				);
+
+			}
+
+			for(i=1; i < this.top_contour.length; i++ ) {
+				var x = this.top_contour[i].x;
+				var y = this.top_contour[i].y;
+
+				if(this.debug > 0) {
+					this.lipCanvasCtx.lineTo(
+						x-this.top_roi.x+this.width-this.top_canny.width, 
+						y-this.top_roi.y+this.height-this.top_canny.height
+					);
+				}
+			}
+
+			if(this.debug > 0) {
+				this.lipCanvasCtx.closePath();
+				this.lipCanvasCtx.stroke();
+			}
+		}
+
+///////////////////////
+
+		console.log(score, this.top_score);
+		return false;
 	},
 
 	drawRectangle: function (ctx, rect, color) {
