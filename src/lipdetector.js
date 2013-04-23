@@ -64,6 +64,7 @@ var LipDetector = {
 
 		this.mouth = {x:this.width/2, y:this.height/2, width:0, height:0};
 		this.convexhull = [];
+		this.pause = false;
 	},
 	createWorkArea: function(scale, width, height) {
 		var  workArea = {scale:1./scale}, h, w;
@@ -105,7 +106,6 @@ var LipDetector = {
 	},
     init:function(webcam, webcamCanvas, lipCanvas){
 		this.debug = 1;
-		this.use_canny = false;
 
         this.webcam = webcam;
         this.webcamCanvas = webcamCanvas;
@@ -209,13 +209,13 @@ var LipDetector = {
 
 		// smooth movement of mouth region and median
 		var factor = 0.75, antifactor = 1-factor;
-		this.mouth.x = this.mouth.x * factor + (median.x-median.width/2) * antifactor;
-		this.mouth.y = this.mouth.y * factor + (median.y-median.height/2) * antifactor;
-		this.mouth.width = this.mouth.width * factor + median.width * antifactor;
-		this.mouth.height = this.mouth.height * factor + median.height * antifactor;
+		this.mouth.x = Math.round(this.mouth.x * factor + (median.x-median.width/2) * antifactor);
+		this.mouth.y = Math.round(this.mouth.y * factor + (median.y-median.height/2) * antifactor);
+		this.mouth.width = Math.round(this.mouth.width * factor + median.width * antifactor);
+		this.mouth.height = Math.round(this.mouth.height * factor + median.height * antifactor);
 
-		median.x = this.mouth.x + this.mouth.width/2;
-		median.y = this.mouth.y + this.mouth.height/2;
+		median.x = Math.round(this.mouth.x + this.mouth.width/2);
+		median.y = Math.round(this.mouth.y + this.mouth.height/2);
 
 		var border = 0.25;
 		var mask = {
@@ -230,59 +230,57 @@ var LipDetector = {
 		this.drawRectangle(ctx,this.mouth,'red');
 		this.drawRectangle(ctx,mask,'cyan');
 
-if(0) {
-		// remove outliers (outside mouth region)
-		for(i=0; i< universe.length; i++) {
-			if(!this.point_status[i]) continue;
-			if(universe[i].x < this.mouth.x
-			|| universe[i].y < this.mouth.y
-			|| universe[i].x > this.mouth.x+this.mouth.width
-			|| universe[i].y > this.mouth.y+this.mouth.height
-			) {
-				this.point_status[i] = 0;
-			}
-		}
-}
-
-		// TODO merge both outlier remotion in an elipse
-		// TODO select points over the edges of canny
-
-if(1) {
-		// remove outliers (far from median)
-		var max_distance = this.mouth.height;
-		for(i=0; i< universe.length; i++) {
-			if(!this.point_status[i]) continue;
-			var dist = Math.sqrt( Math.pow( median.x - universe[i].x, 2) + Math.pow(Math.abs(median.y - universe[i].y), 2) );
-			if(dist > max_distance) {
-				this.point_status[i] = 0;
-			}
-		}
-}
-
-if(1) {
-		// remove internal (convex hull)
-		var central = [];
-		for(i=0; i< universe.length; i++) {
-			if(!this.point_status[i]) continue;
-			central.push(universe[i]);
-		}
-		if(central.length > 4) {
-			var convexhull = ConvexHull.get(central);
-			for(i = 0; i < universe.length; ++i) {
-				var found = 0;
-				for(j = 0; j < convexhull.length; ++j) {
-					if(universe[i].x == convexhull[j][0].x
-					&& universe[i].y == convexhull[j][0].y ) {
-						found = 1;
-						break;
-					}
-				}
-				if(!found) {
+		if(0) {
+			// TODO merge both outlier remotion in an elipse
+			// remove outliers (outside mouth region)
+			for(i=0; i< universe.length; i++) {
+				if(!this.point_status[i]) continue;
+				if(universe[i].x < this.mouth.x
+				|| universe[i].y < this.mouth.y
+				|| universe[i].x > this.mouth.x+this.mouth.width
+				|| universe[i].y > this.mouth.y+this.mouth.height
+				) {
 					this.point_status[i] = 0;
 				}
 			}
 		}
-}
+
+		if(1) {
+			// remove outliers (far from median)
+			var max_distance = this.mouth.height;
+			for(i=0; i< universe.length; i++) {
+				if(!this.point_status[i]) continue;
+				var dist = Math.sqrt( Math.pow( median.x - universe[i].x, 2) + Math.pow(Math.abs(median.y - universe[i].y), 2) );
+				if(dist > max_distance) {
+					this.point_status[i] = 0;
+				}
+			}
+		}
+
+		if(1) {
+			// remove internal (convex hull)
+			var central = [];
+			for(i=0; i< universe.length; i++) {
+				if(!this.point_status[i]) continue;
+				central.push(universe[i]);
+			}
+			if(central.length > 4) {
+				var convexhull = ConvexHull.get(central);
+				for(i = 0; i < universe.length; ++i) {
+					var found = 0;
+					for(j = 0; j < convexhull.length; ++j) {
+						if(universe[i].x == convexhull[j][0].x
+						&& universe[i].y == convexhull[j][0].y ) {
+							found = 1;
+							break;
+						}
+					}
+					if(!found) {
+						this.point_status[i] = 0;
+					}
+				}
+			}
+		}
 
 		// remove duplicates (too close)
 		// TODO avoid removing from the edges
@@ -298,31 +296,93 @@ if(1) {
 			}
 		}
 
-if(1) {
-		// remove track failures
-		for(i=0,j=0; i < totalPoints; ++i) {
-			if(this.point_status[i] == 1) {
-				if(j < i) {
-					this.curr_xy[ j<<1]      = this.curr_xy[ i<<1];
-					this.curr_xy[(j<<1) + 1] = this.curr_xy[(i<<1) + 1];
+		if(1) {
+			// remove track failures
+			for(i=0,j=0; i < totalPoints; ++i) {
+				if(this.point_status[i] == 1) {
+					if(j < i) {
+						this.curr_xy[ j<<1]      = this.curr_xy[ i<<1];
+						this.curr_xy[(j<<1) + 1] = this.curr_xy[(i<<1) + 1];
+					}
+					++j;
 				}
-				++j;
 			}
+			return j;
+		} else {
+				return totalPoints;
 		}
-		return j;
-} else {
-		return totalPoints;
-}
 	},
-	drawOpticalFlow: function(ctx, totalPoints) {
+	drawOpticalFlow: function(ctx) {
 		var i;
 		if(this.debug > 0) {
 			ctx.globalAlpha = 1;
-			for(i = 0; i < totalPoints; ++i) {
+			for(i = 0; i < this.point_count; ++i) {
 				ctx.strokeStyle = "rgb("+(255*this.point_status[i])+", "+(255*this.point_status[i])+", "+(255*(1-this.point_status[i]))+")";
 				ctx.strokeRect(this.curr_xy[i<<1]-1, this.curr_xy[(i<<1)+1]-1, 3, 3);
 			}
 		}
+	},
+	checkLine: function (img, x0, y0, x1, y1){
+		var dx = Math.abs(x1-x0);
+		var dy = Math.abs(y1-y0);
+		var sx = (x0 < x1) ? 1 : -1;
+		var sy = (y0 < y1) ? 1 : -1;
+		var err = dx-dy;
+
+		var count = 0;
+		while(true){
+			var i = y0*img.cols + x0;
+			var pixel = img.data[i];
+			count += pixel;
+
+			if ((x0==x1) && (y0==y1)) break;
+			var e2 = 2*err;
+			if (e2 >-dy){ err -= dy; x0  += sx; }
+			if (e2 < dx){ err += dx; y0  += sy; }
+		}
+		return count / 255.;
+	},
+	testPuckerMatch: function() {
+		// TODO select points over the edges of canny
+
+		var smallImageData, small_img_u8;
+
+		var base_min_scale = 0.5;
+		var base_max_scale = 0.9;
+		var base_scale = Math.random()*(base_max_scale - base_min_scale) + base_min_scale;
+		var min_scale = base_scale;
+		var max_scale = base_scale+0.2;
+		var roi = {
+			x: Math.round(this.mouth.x - this.mouth.width * (max_scale-1)),
+			y: Math.round(this.mouth.y - this.mouth.height * (max_scale-1)),
+			width: Math.round(this.mouth.width * (1+(max_scale-1)*2)),
+			height: Math.round(this.mouth.height * (1+(max_scale-1)*2))
+		};
+
+		if(roi.width == 0 || roi.height == 0) return 0;
+		smallImageData = this.webcamCanvasCtx.getImageData( roi.x, roi.y, roi.width, roi.height );
+		small_img_u8 = new jsfeat.matrix_t(roi.width, roi.height, jsfeat.U8_t | jsfeat.C1_t);
+
+		jsfeat.imgproc.grayscale(smallImageData.data, small_img_u8.data);
+		jsfeat.imgproc.equalize_histogram(small_img_u8, small_img_u8);
+		jsfeat.imgproc.gaussian_blur(small_img_u8, small_img_u8, 12, 0);
+		jsfeat.imgproc.canny(small_img_u8, small_img_u8, 24, 42);
+
+		if(this.debug > 0) {
+			this.lipCanvasCtx.globalAlpha = 1;
+			this.lipCanvasCtx.putImageData(smallImageData, 0, this.height-smallImageData.height);
+
+			var small_img_u32 = new Uint32Array(smallImageData.data.buffer);
+			var alpha = (0xff << 24);
+			var i = small_img_u8.cols*small_img_u8.rows, pix = 0;
+			while(--i >= 0) {
+				pix = small_img_u8.data[i];
+				small_img_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
+			}
+
+			this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width, this.height-smallImageData.height);
+		}
+
 
 		var cloud = [];
 		for(i = 0; i < this.point_count; ++i) {
@@ -342,24 +402,46 @@ if(1) {
 			}
 		}
 
+		var score = 0;
 		if(this.convexhull.length) {
-			this.lipCanvasCtx.globalAlpha = 0.25;
-			this.lipCanvasCtx.fillStyle = "red";
-
-			var scale = 0.666;
-			var cx = this.mouth.x + this.mouth.width/2;
-			var cy = this.mouth.y + this.mouth.height/2;
-			this.lipCanvasCtx.beginPath();
-			for(i=0; i < this.convexhull.length; i++ ) {
-				var x = (this.convexhull[i][0].x - cx)*scale+cx,
-				    y = (this.convexhull[i][0].y - cy)*scale+cy;
-				if(!i) this.lipCanvasCtx.moveTo(x,y);
-				this.lipCanvasCtx.lineTo(x,y);
+			if(this.debug > 0) {
+				this.lipCanvasCtx.globalAlpha = 0.25;
+				this.lipCanvasCtx.fillStyle = "red";
+				this.lipCanvasCtx.beginPath();
 			}
-			this.lipCanvasCtx.closePath();
-			this.lipCanvasCtx.fill();
+
+			var cx = roi.x + roi.width/2;
+			var cy = roi.y + roi.height/2;
+			var last_x, last_y;
+			for(i=0; i < this.convexhull.length; i++ ) {
+				var scale = Math.random()*(max_scale-min_scale) + min_scale;
+				var x = Math.round((this.convexhull[i][0].x - cx)*scale+cx),
+				    y = Math.round((this.convexhull[i][0].y - cy)*scale+cy);
+
+				if(i) {
+					score += this.checkLine(small_img_u8, last_x-roi.x, last_y-roi.y, x-roi.x, y-roi.y)
+				}
+				last_x = x;
+				last_y = y;
+
+
+				if(this.debug > 0) {
+					if(!i) this.lipCanvasCtx.moveTo(x,y);
+					else this.lipCanvasCtx.lineTo(x,y);
+				}
+			}
+			if(this.debug > 0) {
+				this.lipCanvasCtx.closePath();
+				this.lipCanvasCtx.fill();
+			}
+
+			score /= this.convexhull.length;
 		}
 
+		var target_score = .95;
+
+		console.log(score);
+		return score >= target_score;
 	},
 
 	drawRectangle: function (ctx, rect, color) {
@@ -455,12 +537,7 @@ if(1) {
 
 		jsfeat.imgproc.grayscale(smallImageData.data, small_img_u8.data);
 		jsfeat.imgproc.equalize_histogram(small_img_u8, small_img_u8);
-		if(this.use_canny) {
-			jsfeat.imgproc.gaussian_blur(small_img_u8, small_img_u8, 2, 0);
-			jsfeat.imgproc.canny(small_img_u8, small_img_u8, 24, 42);
-		} else {
-			jsfeat.imgproc.box_blur_gray(small_img_u8, small_img_u8, 4, 0);
-		}
+		jsfeat.imgproc.box_blur_gray(small_img_u8, small_img_u8, 4, 0);
 		jsfeat.yape06.laplacian_threshold = laplacian;
 		jsfeat.yape06.min_eigen_value_threshold = 1;
 
@@ -618,8 +695,10 @@ if(1) {
     tick:function(){
     	var face, lower_face, upper_face, eye_mask, work, mouth, eyes;
         this._interval = compatibility.requestAnimationFrame(function(){
-            LipDetector.tick();
+			LipDetector.tick();
         });
+
+		if(this.pause) return;
 
         if (this.webcam.readyState === this.webcam.HAVE_ENOUGH_DATA || this.useImage) {
 			this.debugPos = 0;
@@ -650,7 +729,12 @@ if(1) {
 
 			this.matchMouthModel(mouth);
 			this.trackMouthModel(mouth);
-			this.drawOpticalFlow(this.lipCanvasCtx, this.point_count);
+			this.drawOpticalFlow(this.lipCanvasCtx);
+
+			if(this.testPuckerMatch()) {
+				console.log("done")
+				this.pause = true;
+			}
         }
     },
     captureLips:function(){
