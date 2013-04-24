@@ -1,3 +1,5 @@
+
+// ConvexHull: http://en.literateprograms.org/Quickhull_(Javascript)
 var ConvexHull = {
 	getDistance:function(point, baseline){
 		var vx, vy;
@@ -360,18 +362,20 @@ var LipDetector = {
 		var err = dx-dy;
 
 		var value = 0;
+		var count = 0;
 		while(true){
 			var i = y0*img.cols + x0;
 			var pixel = img.data[i];
 			if(pixel < value) break;
 			value = pixel;
+			count++;
 
 			if ((x0==x1) && (y0==y1)) break;
 			var e2 = 2*err;
 			if (e2 >-dy){ err -= dy; x0  += sx; }
 			if (e2 < dx){ err += dx; y0  += sy; }
 		}
-		return {x:x0, y:y0};
+		return {x:x0, y:y0, score:value, dist:count};
 	},
 	sumLine: function (img, x0, y0, x1, y1){
 		var dx = Math.abs(x1-x0);
@@ -419,11 +423,10 @@ var LipDetector = {
 		var score = 0;
 		if(this.convexhull.length) {
 
-			var base_min_scale = 0.333;
-			var base_max_scale = 0.999;
-			var base_scale = Math.random()*(base_max_scale - base_min_scale) + base_min_scale;
-			var min_scale = base_scale;
-			var max_scale = base_scale+0.2;
+			var min_scale = 0.4;
+			var max_scale = 1;
+			var scale = Math.random()*(max_scale - min_scale) + min_scale;
+			min_scale = 0.4;
 
 			var n = this.convexhull.length;
 			var cx = this.mouth.x + this.mouth.width/2;
@@ -435,7 +438,6 @@ var LipDetector = {
 			var y1 = 0;
 
 			for(i=0; i < n; i++ ) {
-				var scale = max_scale;
 				var x = Math.round((this.convexhull[i][0].x - cx)*scale+cx),
 					y = Math.round((this.convexhull[i][0].y - cy)*scale+cy);
 
@@ -445,11 +447,13 @@ var LipDetector = {
 				if(y > y1) y1 = y;
 			}
 
+			var step = 2;
+			var border = 2*step;
 			var roi = {
-				x: x0-1,
-				y: y0-1,
-				width: x1-x0+2,
-				height: y1-y0+2
+				x: x0-(border+1),
+				y: y0-(border+1),
+				width: (x1-x0)+(border+1)*2,
+				height: (y1-y0)+(border+1)*2
 			};
 
 			var smallImageData, small_img_u8;
@@ -472,19 +476,19 @@ var LipDetector = {
 				this.lipCanvasCtx.beginPath();
 			}
 			for(i=0; i < n; i++ ) {
-				var scale = Math.random()*(max_scale-min_scale) + min_scale;
 				var x = Math.round((this.convexhull[i][0].x - cx)*scale+cx),
 					y = Math.round((this.convexhull[i][0].y - cy)*scale+cy);
 
 				var x_in = Math.round((this.convexhull[i][0].x - cx)*min_scale+cx),
 					y_in = Math.round((this.convexhull[i][0].y - cy)*min_scale+cy);
-				
-				var p = this.highLine(small_img_u8, 
-					x-roi.x, 
-					y-roi.y, 
-					x_in-roi.x, 
-					y_in-roi.y
-				);
+
+				var p = {x:x, y:y, score:0, dist:this.width+this.height};
+				for(var dx = -border; dx <= +border; dx+=step) {
+					for(var dy = -border; dy <= +border; dy+=step) {
+						var dp = this.highLine(small_img_u8, dx+x-roi.x, dy+y-roi.y, dx+x_in-roi.x, dy+y_in-roi.y);
+						if(dp.score/(1+dp.dist) > p.score/(1+p.dist)) p = dp;
+					}
+				}
 
 				p.x += roi.x;
 				p.y += roi.y;
