@@ -64,6 +64,7 @@ var LipDetector = {
 		this.color = "black";
 		this.block = { x:0, y:0, width:this.width, height:0 };
 
+		this.motion = this.width/8;
 		this.mouth = {x:this.width/2, y:this.height/2, width:0, height:0};
 		this.convexhull = [];
 
@@ -241,10 +242,20 @@ var LipDetector = {
 
 		// smooth movement of mouth region and median
 		var factor = 0.75, antifactor = 1-factor;
-		this.mouth.x = Math.round(this.mouth.x * factor + (median.x-median.width/2) * antifactor);
-		this.mouth.y = Math.round(this.mouth.y * factor + (median.y-median.height/2) * antifactor);
-		this.mouth.width = Math.round(this.mouth.width * factor + median.width * antifactor);
-		this.mouth.height = Math.round(this.mouth.height * factor + median.height * antifactor);
+		var new_mouth = {};
+		new_mouth.x = Math.round(this.mouth.x * factor + (median.x-median.width/2) * antifactor);
+		new_mouth.y = Math.round(this.mouth.y * factor + (median.y-median.height/2) * antifactor);
+		new_mouth.width = Math.round(this.mouth.width * factor + median.width * antifactor);
+		new_mouth.height = Math.round(this.mouth.height * factor + median.height * antifactor);
+
+
+		var motion = this.getDistance(new_mouth, this.mouth);
+		this.motion = this.motion * 0.95 + motion * 0.05;
+
+		this.mouth.x = new_mouth.x;
+		this.mouth.y = new_mouth.y;
+		this.mouth.width = new_mouth.width;
+		this.mouth.height = new_mouth.height;
 
 		median.x = Math.round(this.mouth.x + this.mouth.width/2);
 		median.y = Math.round(this.mouth.y + this.mouth.height/2);
@@ -464,7 +475,7 @@ var LipDetector = {
 			jsfeat.imgproc.grayscale(smallImageData.data, small_img_u8.data);
 			jsfeat.imgproc.equalize_histogram(small_img_u8, small_img_u8);
 			jsfeat.imgproc.gaussian_blur(small_img_u8, small_img_u8, 24, 0);
-			jsfeat.imgproc.canny(small_img_u8, small_img_u8, 16, 72);
+			jsfeat.imgproc.canny(small_img_u8, small_img_u8, 16, 64);
 			jsfeat.imgproc.gaussian_blur(small_img_u8, small_img_u8, 32, 2);
 
 
@@ -573,6 +584,8 @@ var LipDetector = {
 
 			}
 
+			score /= (1+this.motion);
+
 
 			if(score > this.top_score) {
 				this.top_score = score;
@@ -638,7 +651,7 @@ var LipDetector = {
 
 ///////////////////////
 
-		console.log(score, this.top_score, this.top_countdown);
+		console.log(score, this.top_score, this.top_countdown, this.motion);
 		return this.top_countdown-- < 0;
 	},
 

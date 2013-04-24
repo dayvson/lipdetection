@@ -48,7 +48,7 @@
             function changeSource(url){
                 video.src = url
             }
-            changeSource("videos/10.mp4");
+            changeSource("videos/4.mp4");
             setTimeout(function() {
                             video.play();
                             demo_app();
@@ -63,8 +63,11 @@
 
             var demo_opt = function(){
                 this.blur_radius = 2;
+                this.blur_sigma = 2;
                 this.low_threshold = 20;
                 this.high_threshold = 50;
+                this.blur2_radius = 2;
+                this.blur2_sigma = 2;
             }
 
             function demo_app() {
@@ -80,13 +83,17 @@
                 options = new demo_opt();
                 gui = new dat.GUI();
 
-                gui.add(options, 'blur_radius', 0, 4).step(1);
-                gui.add(options, 'low_threshold', 1, 127).step(1);
-                gui.add(options, 'high_threshold', 1, 127).step(1);
+                gui.add(options, 'blur_radius', 0, 32).step(1);
+                gui.add(options, 'blur_sigma', 0, 32).step(1);
+                gui.add(options, 'low_threshold', 0, 255).step(1);
+                gui.add(options, 'high_threshold', 0, 255).step(1);
+                gui.add(options, 'blur2_radius', 0, 32).step(1);
+                gui.add(options, 'blur2_sigma', 0, 32).step(1);
 
                 stat.add("grayscale");
                 stat.add("gauss blur");
                 stat.add("canny edge");
+                stat.add("gauss blur2");
             }
 
             function tick() {
@@ -100,16 +107,17 @@
                     jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
                     stat.stop("grayscale");
 
-                    var r = options.blur_radius|0;
-                    var kernel_size = (r+1) << 1;
-
                     stat.start("gauss blur");
-                    jsfeat.imgproc.gaussian_blur(img_u8, img_u8, kernel_size, 0);
+                    jsfeat.imgproc.gaussian_blur(img_u8, img_u8, options.blur_radius, options.blur_sigma);
                     stat.stop("gauss blur");
 
                     stat.start("canny edge");
                     jsfeat.imgproc.canny(img_u8, img_u8, options.low_threshold|0, options.high_threshold|0);
                     stat.stop("canny edge");
+
+                    stat.start("gauss blur2");
+                    jsfeat.imgproc.gaussian_blur(img_u8, img_u8, options.blur2_radius, options.blur2_sigma);
+                    stat.stop("gauss blur2");
 
                     // render result back to canvas
                     var data_u32 = new Uint32Array(imageData.data.buffer);
@@ -130,6 +138,10 @@
                 video.pause();
                 video.src=null;
             });
+
+			$("#webcam").bind('ended', function(){
+                $("#webcam")[0].play();
+            });
         });
         </script>
     </body>
