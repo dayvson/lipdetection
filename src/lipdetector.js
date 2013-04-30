@@ -90,7 +90,7 @@ var LipDetector = {
 			{x:0, y:0}
 		];
 
-		this.cube_size = 64;
+		this.cube_size = 32;
 		this.cube_div = 256/this.cube_size;
 		this.chromakey = [];
 		for(var r=0; r< this.cube_size; r++) {
@@ -526,7 +526,7 @@ var LipDetector = {
 				for(var g=0; g< this.cube_size; g++) {
 					cube[r][g] = [];
 					for(var b=0; b< this.cube_size; b++) {
-						cube[r][g][b] = this.chromakey[r][g][b]*2;
+						cube[r][g][b] = this.chromakey[r][g][b]*3;
 
 						for(var dr=Math.max(0,r-1); dr<=Math.min(this.cube_size-1,r+1); dr++) {
 							for(var dg=Math.max(0,g-1); dg<=Math.min(this.cube_size-1,g+1); dg++) {
@@ -536,7 +536,7 @@ var LipDetector = {
 							}
 						}
 
-						var v = cube[r][g][b] /= 11.1;
+						var v = cube[r][g][b] = (cube[r][g][b] / 12 * 0.9) + (-0.1 * 0.1);
 						if(v > max_chroma)  max_chroma = v;
 						if(v < min_chroma)  min_chroma = v;
 						
@@ -630,10 +630,15 @@ var LipDetector = {
 						var dy = (y - cy0) / cy0;
 						var d = Math.sqrt(Math.pow(dy,2)+Math.pow(dx,2));
 						var f = d > 0.888 ? 0.333 : d > 0.333 ? 0.666 : 1;
+						var r = Math.floor(small_img_4u8[i+0]/this.cube_div);
+						var g = Math.floor(small_img_4u8[i+1]/this.cube_div);
+						var b = Math.floor(small_img_4u8[i+2]/this.cube_div);
+						var c = (this.chromakey[r][g][b]-this.min_chromakey) / (this.max_chromakey-this.min_chromakey);
+var c = 1;
 						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
 						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
 						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
-						small_img_4u8[i]= 0xff; i++; // alpha
+						small_img_4u8[i] = c * 0xff; i++;  // alpha // FIXME print chroma debug
 					}
 				}
 
