@@ -1,3 +1,14 @@
+var Vec2 = {
+	right_normal: function(a) {
+	  return {x: -a.y, y: a.x};
+	},
+	sub: function(a, b) {
+	  return {x: b.x-a.x, y: b.y-a.y};
+	},
+	dot: function(a, b) {
+	  return a.x * b.x + a.y * b.y;
+	}
+};
 
 // ConvexHull: http://en.literateprograms.org/Quickhull_(Javascript)
 var ConvexHull = {
@@ -74,9 +85,9 @@ var LipDetector = {
 			{ x:  0,      y: -0.8 },
 			{ x:  0.666,  y: -1   },
 			{ x:  1,      y:  0   },
-			{ x:  0.333,  y:  0.8 },
+			{ x:  0.666,  y:  0.8 },
 			{ x:  0,      y:  1   },
-			{ x: -0.333,  y:  0.8 }
+			{ x: -0.666,  y:  0.8 }
 		];
 
 		this.shape = [
@@ -391,12 +402,12 @@ var LipDetector = {
 		var value = 0;
 		var count = 0;
 		while(true){
+			if(x0<0 || y0<0 || x0 >= pitch || y0 >= img.length/4/pitch) break;
 			var i = (y0*pitch + x0)*4;
 			var r = Math.floor(img[i+0]/this.cube_div);
 			var g = Math.floor(img[i+1]/this.cube_div);
 			var b = Math.floor(img[i+2]/this.cube_div);
-			//if(isNaN(r)|| this.chromakey[r][g][b] < 0) break;
-			if((isNaN(r)|| (this.chromakey[r][g][b]-this.min_chromakey)/(this.max_chromakey-this.min_chromakey) < 0.333) && --border < 0) break;
+			if(((this.chromakey[r][g][b]-this.min_chromakey)/(this.max_chromakey-this.min_chromakey) < 0.333) && --border < 0) break;
 			value = this.chromakey[r][g][b];
 			if(0 && this.debug>0) {
 				img[i+0] = (value-this.min_chromakey) / (this.max_chromakey-this.min_chromakey) * 0xff;
@@ -563,7 +574,6 @@ var LipDetector = {
 					y_in = Math.round(this.shape_base[i].y*roi.height*min_scale+cy);
 
 				var p = this.highLine(small_img_4u8, smallImageData.width, x_in-roi.x, y_in-roi.y, x-roi.x, y-roi.y, 2);
-				//if(dp.score/(1+dp.dist) > p.score/(1+p.dist)) p = dp;
 
 				// score += 1/(1+p.dist);
 
@@ -588,10 +598,27 @@ var LipDetector = {
 
 
 			// rank contour
-			for(i=0; i < contour.length; i++ ) {
-				score += contour[i].score;
+			var rank_count = 0;
+			for(var y = 0; y < smallImageData.height ; y++) {
+				for(var x = 0; x < smallImageData.width ; x++) {
+					// TODO use destination-in operation on canvas to mask shape
+					var inside = true;
+					for(i=1; i < this.shape.length; i++ ) {
+						var normal = Vec2.right_normal(Vec2.sub(this.shape[i-1], this.shape[i]));
+						var dir = Vec2.dot(normal, {x:x,y:y});
+						if(dir < 0) { inside = false;  break; }
+					}
+					if(!inside) continue;
+					var r = Math.floor(small_img_4u8[i]/this.cube_div); i++;
+					var g = Math.floor(small_img_4u8[i]/this.cube_div); i++;
+					var b = Math.floor(small_img_4u8[i]/this.cube_div); i++;
+					i++;  // alpha
+					var c = (this.chromakey[r][g][b]-this.min_chromakey) / (this.max_chromakey-this.min_chromakey);
+					score += c;
+					rank_count++;
+				}
 			}
-			score /= (contour.length-1);
+			score /= rank_count;
 
 
 			if(this.debug > 0) {
@@ -697,61 +724,7 @@ var LipDetector = {
 			}
 		}
 
-/////////////////// draw top contour
-		if(this.top_contour[0] && this.top_match) {
-			
-			last_x = this.top_contour[0].x, last_y = this.top_contour[0].y;
-
-			if(this.debug > 0) {
-				this.lipCanvasCtx.globalAlpha = 1;
-				this.lipCanvasCtx.putImageData(this.top_match, this.width-this.top_match.width, this.height-this.top_match.height);
-				this.lipCanvasCtx.strokeStyle = "magenta";
-				this.lipCanvasCtx.beginPath();
-				this.lipCanvasCtx.moveTo(
-					last_x-this.top_roi.x+this.width-this.top_match.width, 
-					last_y-this.top_roi.y+this.height-this.top_match.height
-				);
-
-			}
-
-			for(i=1; i < this.top_contour.length; i++ ) {
-				var x = this.top_contour[i].x;
-				var y = this.top_contour[i].y;
-
-				if(this.debug > 0) {
-					this.lipCanvasCtx.lineTo(
-						x-this.top_roi.x+this.width-this.top_match.width, 
-						y-this.top_roi.y+this.height-this.top_match.height
-					);
-				}
-			}
-
-			if(this.debug > 0) {
-				this.lipCanvasCtx.closePath();
-				this.lipCanvasCtx.stroke();
-			}
-
-/// draw top contour on scene /// debug // remove
-				this.lipCanvasCtx.globalAlpha = 0.3;
-				this.lipCanvasCtx.fillStyle = "magenta";
-				this.lipCanvasCtx.beginPath();
-
-				for(i=0; i < this.top_contour.length; i++ ) {
-					var x = this.top_contour[i].x;
-					var y = this.top_contour[i].y;
-
-					if(!i) this.lipCanvasCtx.moveTo(x,y);
-					else this.lipCanvasCtx.lineTo(x,y);
-				}
-
-				this.lipCanvasCtx.closePath();
-				this.lipCanvasCtx.fill();
-
-		}
-
-///////////////////////
-
-		//console.log(score, this.top_score, this.top_countdown, this.motion);
+		console.log(score, this.top_score, this.top_countdown, this.motion);
 		return this.top_countdown-- < 0;
 	},
 
@@ -1066,6 +1039,66 @@ var LipDetector = {
 				this.pause = true;
 
 			}
+
+
+			/////////////////// draw top contour
+			if(this.top_contour[0] && this.top_match) {
+
+				last_x = this.top_contour[0].x, last_y = this.top_contour[0].y;
+
+				if(this.debug > 0) {
+					this.lipCanvasCtx.globalAlpha = 1;
+					this.lipCanvasCtx.putImageData(this.top_match, this.width-this.top_match.width, this.height-this.top_match.height);
+					this.lipCanvasCtx.strokeStyle = "magenta";
+					this.lipCanvasCtx.beginPath();
+					this.lipCanvasCtx.moveTo(
+							last_x-this.top_roi.x+this.width-this.top_match.width, 
+							last_y-this.top_roi.y+this.height-this.top_match.height
+							);
+
+				}
+
+				for(i=1; i < this.top_contour.length; i++ ) {
+					var x = this.top_contour[i].x;
+					var y = this.top_contour[i].y;
+
+					if(this.debug > 0) {
+						this.lipCanvasCtx.lineTo(
+								x-this.top_roi.x+this.width-this.top_match.width, 
+								y-this.top_roi.y+this.height-this.top_match.height
+								);
+					}
+				}
+
+				if(this.debug > 0) {
+					this.lipCanvasCtx.closePath();
+					this.lipCanvasCtx.stroke();
+				}
+
+				/// draw top contour on scene /// debug // remove
+				this.lipCanvasCtx.globalAlpha = 0.3;
+				this.lipCanvasCtx.fillStyle = "magenta";
+				this.lipCanvasCtx.beginPath();
+
+				for(i=0; i < this.top_contour.length; i++ ) {
+					var x = this.top_contour[i].x;
+					var y = this.top_contour[i].y;
+
+					if(!i) this.lipCanvasCtx.moveTo(x,y);
+					else this.lipCanvasCtx.lineTo(x,y);
+				}
+
+				this.lipCanvasCtx.closePath();
+				this.lipCanvasCtx.fill();
+
+			}
+
+			///////////////////////
+
+
+
+
+
         }
     },
     captureLips:function(){
