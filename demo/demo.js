@@ -55,7 +55,7 @@ $(function(){
             }
         );
     }
-    webcam.src = "videos/10.mp4";
+    webcam.src = "videos/9.mp4";
     setTimeout(initDemo, 500);
     $(window).unload(function() {
         webcam.pause();

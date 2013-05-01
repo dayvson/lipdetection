@@ -512,7 +512,7 @@ var LipDetector = {
 					var dx = (x - cx0) / cx0;
 					var dy = (y - cy0) / cy0;
 					var d = Math.sqrt(Math.pow(dy,2)+Math.pow(dx,2));
-					var f = d > 0.888 ? -1 : d > 0.333 ? 0 : 5;
+					var f = d > 0.888 ? -1 : d > 0.333 ? 0 : 10;
 					this.chromakey[r][g][b] += f;
 				}
 			}
@@ -536,7 +536,7 @@ var LipDetector = {
 							}
 						}
 
-						var v = cube[r][g][b] = (cube[r][g][b] / 12 * 0.9) + (-0.1 * 0.1);
+						var v = cube[r][g][b] = (cube[r][g][b] / 30.0 * 0.9) + (-0.02 * 0.1);
 						if(v > max_chroma)  max_chroma = v;
 						if(v < min_chroma)  min_chroma = v;
 						
@@ -565,6 +565,8 @@ var LipDetector = {
 				//var p = {x:x, y:y, score:0, dist:this.width+this.height};
 				var p = this.highLine(small_img_4u8, smallImageData.width, x_in-roi.x, y_in-roi.y, x-roi.x, y-roi.y);
 				//if(dp.score/(1+dp.dist) > p.score/(1+p.dist)) p = dp;
+
+				score += 1/(1+p.dist);
 
 				p.x += roi.x;
 				p.y += roi.y;
@@ -620,7 +622,7 @@ var LipDetector = {
 				this.lipCanvasCtx.stroke();
 			}
 
-			if(this.debug>0) { // 3
+			if(this.debug>0) {
 				var cx0 = smallImageData.width/2;
 				var cy0 = smallImageData.height/2;
 				i = 0;
@@ -634,17 +636,51 @@ var LipDetector = {
 						var g = Math.floor(small_img_4u8[i+1]/this.cube_div);
 						var b = Math.floor(small_img_4u8[i+2]/this.cube_div);
 						var c = (this.chromakey[r][g][b]-this.min_chromakey) / (this.max_chromakey-this.min_chromakey);
-var c = 1;
-						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
-						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
-						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
-						small_img_4u8[i] = c * 0xff; i++;  // alpha // FIXME print chroma debug
+						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
+						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
+						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
+						small_img_4u8[i] = (c*0.75+0.25) * 0xff; i++;  // alpha
 					}
 				}
-
 				this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width*2, this.height-smallImageData.height);
-			}
 
+				i = 0;
+				for(var y = 0; y < smallImageData.height ; y++) {
+					for(var x = 0; x < smallImageData.width ; x++) {
+						var dx = (x - cx0) / cx0;
+						var dy = (y - cy0) / cy0;
+						var d = Math.sqrt(Math.pow(dy,2)+Math.pow(dx,2));
+						var f = d > 0.888 ? 0.333 : d > 0.333 ? 0.666 : 1;
+						var r = Math.floor(small_img_4u8[i+0]/this.cube_div);
+						var g = Math.floor(small_img_4u8[i+1]/this.cube_div);
+						var b = Math.floor(small_img_4u8[i+2]/this.cube_div);
+						var c = (this.chromakey[r][g][b]-this.min_chromakey) / (this.max_chromakey-this.min_chromakey);
+						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
+						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
+						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
+						small_img_4u8[i] = c>0.25 ? 0xff : 0x00 ; i++;  // alpha
+					}
+				}
+				this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width*3, this.height-smallImageData.height);
+
+				i = 0;
+				for(var y = 0; y < smallImageData.height ; y++) {
+					for(var x = 0; x < smallImageData.width ; x++) {
+						var dx = (x - cx0) / cx0;
+						var dy = (y - cy0) / cy0;
+						var d = Math.sqrt(Math.pow(dy,2)+Math.pow(dx,2));
+						var f = d > 0.888 ? 0.333 : d > 0.333 ? 0.666 : 1;
+						var r = Math.floor(small_img_4u8[i+0]/this.cube_div);
+						var g = Math.floor(small_img_4u8[i+1]/this.cube_div);
+						var b = Math.floor(small_img_4u8[i+2]/this.cube_div);
+						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
+						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
+						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
+						small_img_4u8[i] = 0xff; i++;  // alpha
+					}
+				}
+				this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width*4, this.height-smallImageData.height);
+			}
 
 			score /= (1+this.motion);
 
