@@ -69,25 +69,25 @@ var LipDetector = {
 		this.convexhull = [];
 
 		this.shape_base = [
-			{x: -1.5+0,   y: -1+1},   // a
-			{x: -1.5+1,   y: -1+0},   // b
-			{x: -1.5+1.5, y: -1+0.2}, // c
-			{x: -1.5+2,   y: -1+0},   // d
-			{x: -1.5+3,   y: -1+1},   // e
-			{x: -1.5+2,   y: -1+1.8}, // f
-			{x: -1.5+1.5, y: -1+2},   // g
-			{x: -1.5+1,   y: -1+1.8}  // h
+			{ x: -1,      y:  0   },
+			{ x: -0.666,  y: -1   },
+			{ x:  0,      y: -0.8 },
+			{ x:  0.666,  y: -1   },
+			{ x:  1,      y:  0   },
+			{ x:  0.333,  y:  0.8 },
+			{ x:  0,      y:  1   },
+			{ x: -0.333,  y:  0.8 }
 		];
 
-		this.shape_displace = [
-			{x:0, y:0},
-			{x:0, y:0},
-			{x:0, y:0},
-			{x:0, y:0},
-			{x:0, y:0},
-			{x:0, y:0},
-			{x:0, y:0},
-			{x:0, y:0}
+		this.shape = [
+			{x:this.width/2, y:this.height/2},
+			{x:this.width/2, y:this.height/2},
+			{x:this.width/2, y:this.height/2},
+			{x:this.width/2, y:this.height/2},
+			{x:this.width/2, y:this.height/2},
+			{x:this.width/2, y:this.height/2},
+			{x:this.width/2, y:this.height/2},
+			{x:this.width/2, y:this.height/2}
 		];
 
 		this.cube_size = 32;
@@ -381,7 +381,7 @@ var LipDetector = {
 			}
 		}
 	},
-	highLine: function (img, pitch, x0, y0, x1, y1){
+	highLine: function (img, pitch, x0, y0, x1, y1, border){
 		var dx = Math.abs(x1-x0);
 		var dy = Math.abs(y1-y0);
 		var sx = (x0 < x1) ? 1 : -1;
@@ -395,8 +395,8 @@ var LipDetector = {
 			var r = Math.floor(img[i+0]/this.cube_div);
 			var g = Math.floor(img[i+1]/this.cube_div);
 			var b = Math.floor(img[i+2]/this.cube_div);
-			if(isNaN(r)|| this.chromakey[r][g][b] < 0) break;
-			//if(isNaN(r)|| this.chromakey[r][g][b] < this.min_chroma*0.8+this.max_chroma*0.2) break;
+			//if(isNaN(r)|| this.chromakey[r][g][b] < 0) break;
+			if((isNaN(r)|| (this.chromakey[r][g][b]-this.min_chromakey)/(this.max_chromakey-this.min_chromakey) < 0.333) && --border < 0) break;
 			value = this.chromakey[r][g][b];
 			if(0 && this.debug>0) {
 				img[i+0] = (value-this.min_chromakey) / (this.max_chromakey-this.min_chromakey) * 0xff;
@@ -460,7 +460,7 @@ var LipDetector = {
 		}
 
 		var score = 0;
-		if(this.convexhull.length) {
+		if(this.convexhull.length > 6) {
 
 			var n = this.convexhull.length;
 			var cx = this.mouth.x + this.mouth.width/2;
@@ -498,7 +498,7 @@ var LipDetector = {
 			smallImageData = this.webcamCanvasCtx.getImageData( roi.x, roi.y, roi.width, roi.height );
 
 
-			// TODO sample pixels and accumulate on a color cube
+			// sample pixels and accumulate on a color cube
 			var small_img_4u8 = new Uint8Array(smallImageData.data.buffer);
 			var cx0 = smallImageData.width/2;
 			var cy0 = smallImageData.height/2;
@@ -555,21 +555,23 @@ var LipDetector = {
 				this.lipCanvasCtx.strokeStyle = "red";
 				this.lipCanvasCtx.beginPath();
 			}
-			for(i=0; i < n; i++ ) {
-				var x = Math.round((this.convexhull[i][0].x - cx)*scale+cx),
-					y = Math.round((this.convexhull[i][0].y - cy)*scale+cy);
+			for(i=0; i < this.shape_base.length; i++ ) {
+				var x = Math.round(this.shape[i].x*0.2+(this.shape_base[i].x*roi.width*scale+cx)*0.8),
+					y = Math.round(this.shape[i].y*0.2+(this.shape_base[i].y*roi.height*scale+cy)*0.8);
 
-				var x_in = Math.round((this.convexhull[i][0].x - cx)*min_scale+cx),
-					y_in = Math.round((this.convexhull[i][0].y - cy)*min_scale+cy);
+				var x_in = Math.round(this.shape_base[i].x*roi.width*min_scale+cx),
+					y_in = Math.round(this.shape_base[i].y*roi.height*min_scale+cy);
 
-				//var p = {x:x, y:y, score:0, dist:this.width+this.height};
-				var p = this.highLine(small_img_4u8, smallImageData.width, x_in-roi.x, y_in-roi.y, x-roi.x, y-roi.y);
+				var p = this.highLine(small_img_4u8, smallImageData.width, x_in-roi.x, y_in-roi.y, x-roi.x, y-roi.y, 2);
 				//if(dp.score/(1+dp.dist) > p.score/(1+p.dist)) p = dp;
 
-				score += 1/(1+p.dist);
+				// score += 1/(1+p.dist);
 
 				p.x += roi.x;
 				p.y += roi.y;
+
+				this.shape[i].x = this.shape[i].x *0.95 + 0.05* p.x;
+				this.shape[i].y = this.shape[i].y *0.95 + 0.05* p.y;
 
 				contour.push(p);
 
@@ -658,7 +660,7 @@ var LipDetector = {
 						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
 						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
 						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
-						small_img_4u8[i] = c>0.25 ? 0xff : 0x00 ; i++;  // alpha
+						small_img_4u8[i] = c>0.333 ? 0xff : 0x00 ; i++;  // alpha
 					}
 				}
 				this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width*3, this.height-smallImageData.height);
@@ -749,7 +751,7 @@ var LipDetector = {
 
 ///////////////////////
 
-		console.log(score, this.top_score, this.top_countdown, this.motion);
+		//console.log(score, this.top_score, this.top_countdown, this.motion);
 		return this.top_countdown-- < 0;
 	},
 
