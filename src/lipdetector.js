@@ -7,12 +7,30 @@ var Vec2 = {
 	},
 	dot: function(a, b) {
 	  return a.x * b.x + a.y * b.y;
-	}
+	},
+	normalize: function(a) {
+		var d = Math.sqrt(Vec2.dot(a,a));
+	  return {x: a.x/d, y: a.y/d};
+	},
+	distance:function(a, b){
+		return Math.sqrt( Math.pow( a.x - b.x, 2) + Math.pow(a.y - b.y, 2) );
+	},
+	inside:function(shape,point) {
+		var inside = true;
+		for(var j=0; j < shape.length; j++ ) {
+		   var k = ( j + 1 ) % shape.length;
+		   var normal = Vec2.right_normal(Vec2.sub(shape[j], shape[k]));
+		   var vec = Vec2.sub(shape[j],point);
+		   var dir = Vec2.dot(normal, vec);
+		   if(dir < 0) { inside = false;  break; }
+		}
+		return inside;
+   }
 };
 
 // ConvexHull: http://en.literateprograms.org/Quickhull_(Javascript)
 var ConvexHull = {
-	getDistance:function(point, baseline){
+	pointLineDistance:function(point, baseline){
 		var vx, vy;
 		vx = baseline[0].x - baseline[1].x;
     	vy = baseline[1].y - baseline[0].y;
@@ -22,7 +40,7 @@ var ConvexHull = {
 	    var maxD = 0, maxPt, newPoints = [], currentPoint, dist;
 	    for (var idx in points) {
 	        currentPoint = points[idx];
-	        dist = this.getDistance(currentPoint, baseLine);
+	        dist = this.pointLineDistance(currentPoint, baseLine);
 	        if ( dist <= 0) continue;
 			newPoints.push(currentPoint);	
 	        if ( dist > maxD ) {
@@ -76,13 +94,15 @@ var LipDetector = {
 		this.block = { x:0, y:0, width:this.width, height:0 };
 
 		this.motion = this.width/8;
+		this.instability = 1;
+		this.last_rank_shape = 9999;
 		this.mouth = {x:this.width/2, y:this.height/2, width:0, height:0};
 		this.convexhull = [];
 
 		this.shape_base = [
 			{ x: -1,      y:  0   },
 			{ x: -0.666,  y: -1   },
-			{ x:  0,      y: -0.8 },
+			{ x:  0,      y: -1   },
 			{ x:  0.666,  y: -1   },
 			{ x:  1,      y:  0   },
 			{ x:  0.666,  y:  0.8 },
@@ -90,19 +110,15 @@ var LipDetector = {
 			{ x: -0.666,  y:  0.8 }
 		];
 
-		this.shape = [
-			{x:this.width/2, y:this.height/2},
-			{x:this.width/2, y:this.height/2},
-			{x:this.width/2, y:this.height/2},
-			{x:this.width/2, y:this.height/2},
-			{x:this.width/2, y:this.height/2},
-			{x:this.width/2, y:this.height/2},
-			{x:this.width/2, y:this.height/2},
-			{x:this.width/2, y:this.height/2}
-		];
+		this.shape = [];
+		for(var i=0; i<this.shape_base.length; i++) {
+			this.shape[i] = {x:this.width/2, y:this.height/2}
+		}
 
 		this.cube_size = 32;
 		this.cube_div = 256/this.cube_size;
+		this.chromakey_boost = [];
+		this.chromakey_boost_count = 0;
 		this.chromakey = [];
 		for(var r=0; r< this.cube_size; r++) {
 			this.chromakey[r] = [];
@@ -162,7 +178,7 @@ var LipDetector = {
 		this.prev_xy = new Float32Array(this.point_max_count * 2);
 		this.curr_xy = new Float32Array(this.point_max_count * 2);
 
-		this.top_countdown_max = 120;
+		this.top_countdown_max = 60;
 	},
     init:function(webcam, webcamCanvas, lipCanvas){
 		this.debug = 1;
@@ -257,7 +273,7 @@ var LipDetector = {
 
 		var average_distance = mouth.height;
 		for(i=0; i< universe.length; i++) {
-			average_distance += this.getDistance(median, universe[i]);
+			average_distance += Vec2.distance(median, universe[i]);
 			
 			median.width += Math.abs(median.x - universe[i].x)*2;
 			median.height += Math.abs(median.y - universe[i].y)*2;
@@ -276,8 +292,8 @@ var LipDetector = {
 		new_mouth.height = Math.round(this.mouth.height * factor + median.height * antifactor);
 
 
-		var motion = this.getDistance(new_mouth, this.mouth);
-		this.motion = this.motion * 0.95 + motion * 0.05;
+		var motion = Vec2.distance(new_mouth, this.mouth);
+		this.motion = this.motion * 0.9 + motion * 0.1;
 
 		this.mouth.x = new_mouth.x;
 		this.mouth.y = new_mouth.y;
@@ -359,7 +375,7 @@ var LipDetector = {
 			if(!this.point_status[i]) continue;
 			for(j=0; j< universe.length; j++) {
 				if(i==j || !this.point_status[j]) continue;
-				var dist = this.getDistance(universe[i], universe[j])
+				var dist = Vec2.distance(universe[i], universe[j])
 				if(dist < min_dist) {
 					this.point_status[i] = 0;
 				}
@@ -392,28 +408,36 @@ var LipDetector = {
 			}
 		}
 	},
-	highLine: function (img, pitch, x0, y0, x1, y1, border){
+	highLine: function (img, pitch, x0, y0, x1, y1, tolerance){
 		var dx = Math.abs(x1-x0);
 		var dy = Math.abs(y1-y0);
 		var sx = (x0 < x1) ? 1 : -1;
 		var sy = (y0 < y1) ? 1 : -1;
 		var err = dx-dy;
 
-		var value = 0;
 		var count = 0;
+		var initial_tolerance = tolerance;
 		while(true){
 			if(x0<0 || y0<0 || x0 >= pitch || y0 >= img.length/4/pitch) break;
 			var i = (y0*pitch + x0)*4;
 			var r = Math.floor(img[i+0]/this.cube_div);
 			var g = Math.floor(img[i+1]/this.cube_div);
 			var b = Math.floor(img[i+2]/this.cube_div);
-			if(((this.chromakey[r][g][b]-this.min_chromakey)/(this.max_chromakey-this.min_chromakey) < 0.333) && --border < 0) break;
-			value = this.chromakey[r][g][b];
-			if(0 && this.debug>0) {
-				img[i+0] = (value-this.min_chromakey) / (this.max_chromakey-this.min_chromakey) * 0xff;
-				img[i+1] = (value-this.min_chromakey) / (this.max_chromakey-this.min_chromakey) * 0xff;
-				img[i+2] = (value-this.min_chromakey) / (this.max_chromakey-this.min_chromakey) * 0xff;
+
+			//var chroma = (this.chromakey[r][g][b]-this.min_chromakey)/(this.max_chromakey-this.min_chromakey);
+			//if(chroma < 0.333) break;
+
+			var chroma = (this.chromakey[r][g][b])/(this.max_chromakey-this.min_chromakey);
+			tolerance += Math.min(0,chroma);
+			// console.log(count,tolerance);
+			if(this.debug>5) {
+				// img[i+0] = (value-this.min_chromakey) / (this.max_chromakey-this.min_chromakey) * 0xff;
+				img[i+0] = 0xff
+				img[i+1] = 0xff * tolerance / initial_tolerance;
+				img[i+2] = 0xff * tolerance / initial_tolerance;
+				img[i+3] = 0xff;
 			}
+			if(tolerance <= 0) break;
 			count++;
 
 			if ((x0==x1) && (y0==y1)) break;
@@ -421,7 +445,7 @@ var LipDetector = {
 			if (e2 >-dy){ err -= dy; x0  += sx; }
 			if (e2 < dx){ err += dx; y0  += sy; }
 		}
-		return {x:x0, y:y0, score:value, dist:count};
+		return {x:x0, y:y0, score:tolerance, dist:count};
 	},
 	sumLine: function (img, pitch, x0, y0, x1, y1){
 		var dx = Math.abs(x1-x0);
@@ -470,7 +494,6 @@ var LipDetector = {
 			}
 		}
 
-		var score = 0;
 		if(this.convexhull.length > 6) {
 
 			var n = this.convexhull.length;
@@ -482,8 +505,8 @@ var LipDetector = {
 			var x1 = 0;
 			var y1 = 0;
 
-			var scale=1;
-			var min_scale=0.25;
+			var scale=0.65;
+			var min_scale=0.15;
 
 			for(i=0; i < n; i++ ) {
 				var x = Math.round((this.convexhull[i][0].x - cx)*scale+cx),
@@ -511,6 +534,7 @@ var LipDetector = {
 
 			// sample pixels and accumulate on a color cube
 			var small_img_4u8 = new Uint8Array(smallImageData.data.buffer);
+			var size = smallImageData.width * smallImageData.height;
 			var cx0 = smallImageData.width/2;
 			var cy0 = smallImageData.height/2;
 			i = 0;
@@ -523,8 +547,8 @@ var LipDetector = {
 					var dx = (x - cx0) / cx0;
 					var dy = (y - cy0) / cy0;
 					var d = Math.sqrt(Math.pow(dy,2)+Math.pow(dx,2));
-					var f = d > 0.888 ? -1 : d > 0.333 ? 0 : 10;
-					this.chromakey[r][g][b] += f;
+					var f = d > 0.888 ? -4 : d > 0.333 ? 0 : 128;
+					this.chromakey[r][g][b] += f / size;
 				}
 			}
 
@@ -539,6 +563,10 @@ var LipDetector = {
 					for(var b=0; b< this.cube_size; b++) {
 						cube[r][g][b] = this.chromakey[r][g][b]*3;
 
+						if(this.chromakey_boost_count && this.chromakey_boost[r+":"+g+":"+b]) {
+							cube[r][g][b] += this.chromakey_boost[r+":"+g+":"+b] / this.chromakey_boost_count;
+						}
+
 						for(var dr=Math.max(0,r-1); dr<=Math.min(this.cube_size-1,r+1); dr++) {
 							for(var dg=Math.max(0,g-1); dg<=Math.min(this.cube_size-1,g+1); dg++) {
 								for(var db=Math.max(0,b-1); db<=Math.min(this.cube_size-1,b+1); db++) {
@@ -547,7 +575,7 @@ var LipDetector = {
 							}
 						}
 
-						var v = cube[r][g][b] = (cube[r][g][b] / 30.0 * 0.9) + (-0.02 * 0.1);
+						var v = cube[r][g][b] = (cube[r][g][b] / 30.0 * 0.95) + (-0.000001 * 0.05);
 						if(v > max_chroma)  max_chroma = v;
 						if(v < min_chroma)  min_chroma = v;
 						
@@ -557,31 +585,31 @@ var LipDetector = {
 			this.chromakey = cube;
 			this.max_chromakey = max_chroma;
 			this.min_chromakey = min_chroma;
+			this.chromakey_boost_count = 0;
+			this.chromakey_boost = {};
 
 
 			// find contour
 			var contour = [];
 			if(this.debug > 0) {
 				this.lipCanvasCtx.globalAlpha = 1;
-				this.lipCanvasCtx.strokeStyle = "red";
+				this.lipCanvasCtx.strokeStyle = "cyan";
 				this.lipCanvasCtx.beginPath();
 			}
 			for(i=0; i < this.shape_base.length; i++ ) {
-				var x = Math.round(this.shape[i].x*0.2+(this.shape_base[i].x*roi.width*scale+cx)*0.8),
-					y = Math.round(this.shape[i].y*0.2+(this.shape_base[i].y*roi.height*scale+cy)*0.8);
+				var x = Math.round(this.shape[i].x*0.5+(this.shape_base[i].x*roi.width*scale+cx)*0.5),
+					y = Math.round(this.shape[i].y*0.5+(this.shape_base[i].y*roi.height*scale+cy)*0.5);
 
 				var x_in = Math.round(this.shape_base[i].x*roi.width*min_scale+cx),
 					y_in = Math.round(this.shape_base[i].y*roi.height*min_scale+cy);
 
-				var p = this.highLine(small_img_4u8, smallImageData.width, x_in-roi.x, y_in-roi.y, x-roi.x, y-roi.y, 2);
+				var p = this.highLine(small_img_4u8, smallImageData.width, x_in-roi.x, y_in-roi.y, x-roi.x, y-roi.y, .1);
 
-				// score += 1/(1+p.dist);
+				p.x += roi.x + Math.floor(Math.random()*7)-3;
+				p.y += roi.y + Math.floor(Math.random()*3)-1;
 
-				p.x += roi.x;
-				p.y += roi.y;
-
-				this.shape[i].x = this.shape[i].x *0.95 + 0.05* p.x;
-				this.shape[i].y = this.shape[i].y *0.95 + 0.05* p.y;
+				this.shape[i].x = this.shape[i].x *0.8 + 0.2* p.x;
+				this.shape[i].y = this.shape[i].y *0.8 + 0.2* p.y;
 
 				contour.push(p);
 
@@ -596,29 +624,60 @@ var LipDetector = {
 				this.lipCanvasCtx.stroke();
 			}
 
+			if(this.debug > 0) {
+				this.lipCanvasCtx.globalAlpha = 1;
+				this.lipCanvasCtx.strokeStyle = "red";
+				this.lipCanvasCtx.beginPath();
+				for(i=0; i < this.shape.length; i++ ) {
+					if(!i) this.lipCanvasCtx.moveTo(this.shape[i].x,this.shape[i].y);
+					else this.lipCanvasCtx.lineTo(this.shape[i].x,this.shape[i].y);
+				}
+				this.lipCanvasCtx.closePath();
+				this.lipCanvasCtx.stroke();
+			}
+
+
+			// rank scale
+			var rank_count = 0;
+			var rank_shape = 0;
+			for(i=0; i < this.shape.length; i++ ) {
+				var j = (i - 1 + this.shape.length) % this.shape.length;
+				var k = (i + 1) % this.shape.length;
+				var a = Vec2.normalize(Vec2.sub(this.shape[i], this.shape[k]));
+				var b = Vec2.normalize(Vec2.sub(this.shape[i], this.shape[j]));
+				var ab = Vec2.dot(a, b);
+				var c = Vec2.normalize(Vec2.sub(this.shape_base[i], this.shape_base[k]));
+				var d = Vec2.normalize(Vec2.sub(this.shape_base[i], this.shape_base[j]));
+				var cd = Vec2.dot(c, d);
+				rank_shape += Math.abs(ab - cd);
+			}
+			rank_shape /= this.shape.length;
 
 			// rank contour
-			var rank_count = 0;
+			//var rank_count = 0; // above
+			i = 0;
+			var rank_chroma = 0;
+			this.chromakey_boost_count = 0;
 			for(var y = 0; y < smallImageData.height ; y++) {
 				for(var x = 0; x < smallImageData.width ; x++) {
 					// TODO use destination-in operation on canvas to mask shape
-					var inside = true;
-					for(i=1; i < this.shape.length; i++ ) {
-						var normal = Vec2.right_normal(Vec2.sub(this.shape[i-1], this.shape[i]));
-						var dir = Vec2.dot(normal, {x:x,y:y});
-						if(dir < 0) { inside = false;  break; }
-					}
-					if(!inside) continue;
+					var inside = Vec2.inside(this.shape, {x:roi.x+x,y:roi.y+y});
 					var r = Math.floor(small_img_4u8[i]/this.cube_div); i++;
 					var g = Math.floor(small_img_4u8[i]/this.cube_div); i++;
 					var b = Math.floor(small_img_4u8[i]/this.cube_div); i++;
 					i++;  // alpha
-					var c = (this.chromakey[r][g][b]-this.min_chromakey) / (this.max_chromakey-this.min_chromakey);
-					score += c;
-					rank_count++;
+					if(inside) {
+						rank_chroma += (this.chromakey[r][g][b]-this.min_chromakey) / (this.max_chromakey-this.min_chromakey);
+						rank_count++;
+						this.chromakey_boost_count ++;
+						this.chromakey_boost[r+":"+g+":"+b] = (this.chromakey_boost[r+":"+g+":"+b] || 0) + 4;
+					} else {
+						this.chromakey_boost_count ++;
+						this.chromakey_boost[r+":"+g+":"+b] = (this.chromakey_boost[r+":"+g+":"+b] || 0) - 128;
+					}
 				}
 			}
-			score /= rank_count;
+			rank_chroma /= rank_count;
 
 
 			if(this.debug > 0) {
@@ -652,23 +711,20 @@ var LipDetector = {
 			}
 
 			if(this.debug>0) {
+
+				i = 0;
 				var cx0 = smallImageData.width/2;
 				var cy0 = smallImageData.height/2;
-				i = 0;
 				for(var y = 0; y < smallImageData.height ; y++) {
 					for(var x = 0; x < smallImageData.width ; x++) {
 						var dx = (x - cx0) / cx0;
 						var dy = (y - cy0) / cy0;
 						var d = Math.sqrt(Math.pow(dy,2)+Math.pow(dx,2));
 						var f = d > 0.888 ? 0.333 : d > 0.333 ? 0.666 : 1;
-						var r = Math.floor(small_img_4u8[i+0]/this.cube_div);
-						var g = Math.floor(small_img_4u8[i+1]/this.cube_div);
-						var b = Math.floor(small_img_4u8[i+2]/this.cube_div);
-						var c = (this.chromakey[r][g][b]-this.min_chromakey) / (this.max_chromakey-this.min_chromakey);
-						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
-						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
-						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
-						small_img_4u8[i] = (c*0.75+0.25) * 0xff; i++;  // alpha
+						i++;  // r
+						i++;  // g
+						i++;  // b
+						small_img_4u8[i] = f * 0xff; i++;  // alpha
 					}
 				}
 				this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width*2, this.height-smallImageData.height);
@@ -676,18 +732,15 @@ var LipDetector = {
 				i = 0;
 				for(var y = 0; y < smallImageData.height ; y++) {
 					for(var x = 0; x < smallImageData.width ; x++) {
-						var dx = (x - cx0) / cx0;
-						var dy = (y - cy0) / cy0;
-						var d = Math.sqrt(Math.pow(dy,2)+Math.pow(dx,2));
-						var f = d > 0.888 ? 0.333 : d > 0.333 ? 0.666 : 1;
 						var r = Math.floor(small_img_4u8[i+0]/this.cube_div);
 						var g = Math.floor(small_img_4u8[i+1]/this.cube_div);
 						var b = Math.floor(small_img_4u8[i+2]/this.cube_div);
 						var c = (this.chromakey[r][g][b]-this.min_chromakey) / (this.max_chromakey-this.min_chromakey);
-						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
-						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
-						/* small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); */ i++; 
-						small_img_4u8[i] = c>0.333 ? 0xff : 0x00 ; i++;  // alpha
+						i++;  // r
+						i++;  // g
+						i++;  // b
+						small_img_4u8[i] = (c*0.75+0.25) * 0xff; i++;  // alpha
+						//small_img_4u8[i] = c>0.333 ? 0xff : 0x00 ; i++;  // alpha
 					}
 				}
 				this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width*3, this.height-smallImageData.height);
@@ -695,36 +748,33 @@ var LipDetector = {
 				i = 0;
 				for(var y = 0; y < smallImageData.height ; y++) {
 					for(var x = 0; x < smallImageData.width ; x++) {
-						var dx = (x - cx0) / cx0;
-						var dy = (y - cy0) / cy0;
-						var d = Math.sqrt(Math.pow(dy,2)+Math.pow(dx,2));
-						var f = d > 0.888 ? 0.333 : d > 0.333 ? 0.666 : 1;
-						var r = Math.floor(small_img_4u8[i+0]/this.cube_div);
-						var g = Math.floor(small_img_4u8[i+1]/this.cube_div);
-						var b = Math.floor(small_img_4u8[i+2]/this.cube_div);
-						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
-						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
-						small_img_4u8[i] = Math.floor(small_img_4u8[i] * f); i++; 
-						small_img_4u8[i] = 0xff; i++;  // alpha
+						var inside = Vec2.inside(this.shape, {x:roi.x+x,y:roi.y+y});
+						i++;  // r
+						i++;  // g
+						i++;  // b
+						small_img_4u8[i] = inside ? 0xff : 0x40; i++;  // alpha
 					}
 				}
 				this.lipCanvasCtx.putImageData(smallImageData, smallImageData.width*4, this.height-smallImageData.height);
 			}
 
-			score /= (1+this.motion);
-
+			this.instability = this.instability * 0.9 + Math.abs(this.last_rank_shape-rank_shape) * 0.1;
+			this.last_rank_shape = rank_shape;
+			var score = rank_chroma / (1+rank_shape*1000+this.instability*10000) / (1+this.motion/100);
 
 			if(score > this.top_score) {
 				this.top_score = score;
-				this.top_contour = contour;
+				this.top_contour = [];
+				for(i in this.shape) { this.top_contour[i] = {x:this.shape[i].x, y:this.shape[i].y}; }
 				this.top_match = smallImageData;
 				this.top_webcam = this.webcamCanvasCtx.getImageData( 0, 0, this.width, this.height);
 				this.top_roi = roi;
 				this.top_countdown = this.top_countdown_max;
 			}
+
+			console.log(this.top_score, score, rank_chroma, rank_shape, this.instability, this.motion);
 		}
 
-		console.log(score, this.top_score, this.top_countdown, this.motion);
 		return this.top_countdown-- < 0;
 	},
 
@@ -891,9 +941,6 @@ var LipDetector = {
 
 		return groupArea;
 	},
-	getDistance:function(a, b){
-		return Math.sqrt( Math.pow( a.x - b.x, 2) + Math.pow(a.y - b.y, 2) );
-	},
 	processFeatures:function(mouth, corners, countCorners, callback){
 		var point, centerMouth, max_dist, centralized, score, i, j, k, dist;
 		centerMouth = {x: mouth.width / 2.0, y: mouth.height / 2.0};
@@ -914,7 +961,7 @@ var LipDetector = {
 		var selected = [];
 		for(i = 0; i < countCorners; i++ ) {
 			score = Math.min(1, corners[i].score / 32.0);
-			dist = this.getDistance(corners[i], centerMouth);
+			dist = Vec2.distance(corners[i], centerMouth);
 			centralized = 1-Math.pow(Math.min(dist, max_dist) / max_dist, 1.1);
 			aligned = 1-(Math.abs(corners[i].y - median) / max_dist);
 			point = {
