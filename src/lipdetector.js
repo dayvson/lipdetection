@@ -100,14 +100,14 @@ var LipDetector = {
 		this.convexhull = [];
 
 		this.shape_base = [
-			{ x: -1,      y:  0   },
-			{ x: -0.666,  y: -1   },
-			{ x:  0,      y: -1   },
-			{ x:  0.666,  y: -1   },
-			{ x:  1,      y:  0   },
-			{ x:  0.666,  y:  0.8 },
-			{ x:  0,      y:  1   },
-			{ x: -0.666,  y:  0.8 }
+			{ x: -1,      y:  0     },
+			{ x: -0.75,   y: -0.66  },
+			{ x:  0,      y: -1     },
+			{ x:  0.75,   y: -0.66  },
+			{ x:  1,      y:  0     },
+			{ x:  0.75,   y:  0.66  },
+			{ x:  0,      y:  1     },
+			{ x: -0.75,   y:  0.66  }
 		];
 
 		this.shape = [];
@@ -178,7 +178,7 @@ var LipDetector = {
 		this.prev_xy = new Float32Array(this.point_max_count * 2);
 		this.curr_xy = new Float32Array(this.point_max_count * 2);
 
-		this.top_countdown_max = 60;
+		this.top_countdown_max = 30;
 	},
     init:function(webcam, webcamCanvas, lipCanvas){
 		this.debug = 1;
@@ -760,7 +760,7 @@ var LipDetector = {
 
 			this.instability = this.instability * 0.9 + Math.abs(this.last_rank_shape-rank_shape) * 0.1;
 			this.last_rank_shape = rank_shape;
-			var score = rank_chroma / (1+rank_shape*1000+this.instability*10000) / (1+this.motion/100);
+			var score = rank_chroma / (1+rank_shape*1000000+this.instability*1000000) / (1+this.motion/100);
 
 			if(score > this.top_score) {
 				this.top_score = score;
@@ -772,7 +772,7 @@ var LipDetector = {
 				this.top_countdown = this.top_countdown_max;
 			}
 
-			console.log(this.top_score, score, rank_chroma, rank_shape, this.instability, this.motion);
+			console.log(this.top_score, score, rank_chroma, rank_shape, this.instability, this.motion, this.top_countdown);
 		}
 
 		return this.top_countdown-- < 0;
@@ -1033,20 +1033,22 @@ var LipDetector = {
 			this.lipCanvasCtx.globalAlpha = 1;
 			this.lipCanvasCtx.putImageData(this.top_webcam, 0,0);
 
-			this.lipCanvasCtx.globalAlpha = 0.3;
-			this.lipCanvasCtx.fillStyle = "magenta";
-			this.lipCanvasCtx.beginPath();
+			this.lipCanvasCtx.globalAlpha = 0.01;
+			for(var j=0 ; j<40; j++) {
+				this.lipCanvasCtx.fillStyle = "magenta";
+				this.lipCanvasCtx.beginPath();
 
-			for(i=0; i < this.top_contour.length; i++ ) {
-				var x = this.top_contour[i].x;
-				var y = this.top_contour[i].y;
+				for(i=0; i < this.top_contour.length; i++ ) {
+					var x = this.top_contour[i].x + Math.floor(Math.random()*9)-4;
+					var y = this.top_contour[i].y + Math.floor(Math.random()*5)-2;
 
-				if(!i) this.lipCanvasCtx.moveTo(x,y);
-				else this.lipCanvasCtx.lineTo(x,y);
+					if(!i) this.lipCanvasCtx.moveTo(x,y);
+					else this.lipCanvasCtx.lineTo(x,y);
+				}
+
+				this.lipCanvasCtx.closePath();
+				this.lipCanvasCtx.fill();
 			}
-
-			this.lipCanvasCtx.closePath();
-			this.lipCanvasCtx.fill();
 			return;
 		}
 
