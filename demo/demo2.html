@@ -1,0 +1,58 @@
+<html>
+<head>
+    <title>Lib detection demo</title>
+    <style>
+        #samples{
+            float:left;
+            width:1200;
+            list-style-type:none;
+        }
+        #samples li:first-child {
+            border: 1px solid red;
+        }
+        #samples li{
+            cursor: pointer;
+            padding: 4px;
+            float:left;
+            text-align:center;
+            border: 1px solid white;
+        }
+        #lips-area {
+            width:130px;
+            height:70px;
+            z-index:10;
+            position:absolute;
+            border:1px solid blue;
+            top:300px;
+            left:250px;
+            background: #ffcc00;
+            opacity: 0.1;
+            cursor:pointer;
+        }
+    </style>
+</head>
+<body>
+    <div style="position:relative">
+    <span id="lips-area"></span>
+    <canvas id="lips-canvas" width="640" height="480" style="position:absolute"></canvas>
+    <canvas id="webcam-canvas" width="640" height="480" style="border:1px solid red"></canvas>
+    </div>
+
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+    <script src="../lib/jsfeat.js"></script>
+    <script src="../lib/compatibility.js"></script>
+    <script src="../src/lipdetector2.js"></script>
+    <script src="./demo2.js"></script>
+    <video id="webcam" width="640" height="480" style="display:none;"></video>
+    <ul id="samples">
+        <li><img src="videos/9.jpg" width="90" data-video="videos/9.mp4" height="90" data-index="0"/></li>
+        <li><img src="videos/10.jpg" width="90" data-video="videos/10.mp4" height="90" data-index="1"/></li>
+        <li><img src="videos/8.jpg" width="90" data-video="videos/8.mp4"  height="90" data-index="2"/></li>
+        <li><img src="videos/7.jpg" width="90" data-video="videos/7.mp4"  height="90" data-index="3"/></li>
+        <li><img src="videos/4.jpg" width="90" data-video="videos/4.mp4"  height="90" data-index="4"/></li>
+        <li><img src="videos/1.jpg" width="90" data-video="videos/1.mp4"  height="90" data-index="5"/></li>
+        <li class="cam"><img src="http://3.bp.blogspot.com/_uyEbIVWiQx4/TE4-4tOYEcI/AAAAAAAAAPg/hXiVLfaOz1c/s1600/web-cam.jpg" width="90"  height="90" /> </li>
+    </ul>
+</body>
+</html>
