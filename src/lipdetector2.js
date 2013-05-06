@@ -13,14 +13,17 @@ LipDetector.prototype = {
         this.height = this.webcam.videoHeight;
     },
     draw:function(containerCtx, points){
+		if(!this.areaLips || !points || points.length < 2) return;
+        containerCtx.strokeStyle = "red";
         containerCtx.fillStyle = "magenta";
         containerCtx.beginPath();
         for(var i = 0, x = points.length; i<x; i++){
-            if(i)containerCtx.lineTo( points[i][0], points[i][1]);
-            else containerCtx.moveTo(points[i][0], points[i][1]);                
+            if(i)containerCtx.lineTo(this.areaLips.position().left+points[i][1], this.areaLips.position().top+points[i][2]);
+            else containerCtx.moveTo(this.areaLips.position().left+points[i][1], this.areaLips.position().top+points[i][2]);                
         }
-        containerCtx.globalAlpha = 0.3;
-        containerCtx.fill();
+        containerCtx.globalAlpha = 1;
+        //containerCtx.fill();
+        containerCtx.stroke();
     },
     drawContourForImage:function(areaLips){
         var imageData = this.webcamCanvasCtx.getImageData(areaLips.left, 
