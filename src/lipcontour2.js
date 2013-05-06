@@ -1,11 +1,11 @@
 var LipContour = {
 	border: 4, // at least 1
 	max_mismatch: 999999999999,
-	clearance_range: 0.1,
+	clearance_range: 0.15,
 	getComponent:function(imageData, x,y, c) {
 		return imageData.data[(x + y*imageData.width)*4+c];
 	},
-	// TODO two modes upper/lower highlight
+	// TODO two modes upper/lower highlight ?
 	getMismatchComponent:function(imageData, x,y, c) {
 		var p11 = this.getComponent(imageData,x,y,c);
 		var p10 = this.getComponent(imageData,x,y-this.border,c);
@@ -54,7 +54,7 @@ var LipContour = {
 		return corner;
 	},
     find:function(imageData){
-        return this.findSection(imageData, 4);
+        return this.findSection(imageData, 7);
     }
 }
 

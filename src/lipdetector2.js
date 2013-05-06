@@ -15,8 +15,15 @@ LipDetector.prototype = {
     draw:function(containerCtx, points, offsetX, offsetY){
 		if(!points || points.length < 2) return;
         containerCtx.strokeStyle = "yellow";
-        containerCtx.globalAlpha = 1;
+		var min = LipContour.max_mismatch;
+		var max = 0;
         for(var i = 0, n = points.length; i<n; i++){
+			var v = points[i][0];
+			if(v < min) min = v;
+			if(v > max) max = v;
+		}
+        for(var i = 0, n = points.length; i<n; i++){
+			containerCtx.globalAlpha = 1 - (points[i][0]-min) / (max-min);
 			var x = offsetX+points[i][1];
 			var y = offsetY+points[i][2];
 			containerCtx.strokeRect(x-1, y-1, 3, 3);
