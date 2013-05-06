@@ -13,39 +13,67 @@ $(function(){
     var thumb = document.getElementById("thumb-canvas");
     var webcamStream;
     var loadVideo = function(url){
-        LipDetector.stop();
-        LipDetector.webcam = webcam;
-        LipDetector.webcam.addEventListener('onend', function(){
-            LipDetector.webcam.src = url;    
+        mainLipDetector.stop();
+        mainLipDetector.webcam = webcam;
+        mainLipDetector.webcam.addEventListener('onend', function(){
+            mainLipDetector.webcam.src = url;    
         });
 
-        LipDetector.webcam.src = url;
-        LipDetector.webcam.load();
-        LipDetector.webcam.play();
-        LipDetector.tick();
+        mainLipDetector.webcam.src = url;
+        mainLipDetector.webcam.load();
+        mainLipDetector.webcam.play();
+        mainLipDetector.tick();
     }
     var updateAreaLipsPosition = function(index){
         var area = areaLipsPositions[index];
         $("#lips-area").offset({top:area.top, left:area.left}).width(area.width).height(area.height);
     }
+    // var imgs = [];
+    // $("#images li").each(function(index, elem){
 
-    $("#images li").each(function(index, elem){
-        $(elem).bind("click", function(){
-            var img = document.createElement("img");
-            LipDetector.stop();
-            img.addEventListener("load", function(){
-                LipDetector.useImage = true;
-                LipDetector.webcam = this;
-                LipDetector.tick();
+    //     var img = $('<img/>').load(function(e){
+    //         var ii = e.currentTarget;
+    //         var canvas = document.getElementById("p"+ii.getAttribute("rel"));
+    //         var _lip = document.getElementById("l"+ii.getAttribute("rel"));
+    //         var t = new LipDetector()
+    //         t.init(ii, canvas, _lip, $("#lips-area"));
+    //         t.useImage = true;
+    //         t.tickImage();
+    //     }).attr("rel", index+1).attr("src", elem.firstChild.src);
+        
+
+    //     // img.rel = index;
+    //     // img.addEventListener("load", function(){
+            
+    //     //     var t = new LipDetector(this, document.getElementById("p"+this.rel), 
+    //     //                             document.getElementById("l"+this.rel), $("#lips-area"));
+    //     //     t.webcam = this;
+    //     //     t.useImage = true;
+    //     //     t.tick();
+    //     //     console.loag
+
+    //     //     //t.stop();
+    //     // });
+    //     // img.src = elem.firstChild.src;
+    //     // imgs.push(img);
+    //     // console.log("img", img.src);
+        
+    //     // $(elem).bind("click", function(){
+    //     //     
+    //     //     mainLipDetector.stop();
+    //     //     img.addEventListener("load", function(){
+    //     //         mainLipDetector.useImage = true;
+    //     //         mainLipDetector.webcam = this;
+    //     //         mainLipDetector.tick();
                     
-            });
-            img.src = this.firstChild.src;
-            updateAreaLipsPosition(this.firstChild.getAttribute('data-index'));
-        });
-    });
+    //     //     });
+    //     //     img.src = this.firstChild.src;
+    //     //     updateAreaLipsPosition(this.firstChild.getAttribute('data-index'));
+    //     // });
+    // });
     $("#samples li").each(function(index, elem){
         $(elem).bind("click", function(){
-            LipDetector.useImage = false;
+            mainLipDetector.useImage = false;
             $("#samples li").css({"border":"1px solid white"});
             $(this).css({"border":"1px solid red"});
             if($(this).hasClass("cam")){
@@ -61,9 +89,11 @@ $(function(){
     var initDemo = function(){
         webcam.play();
     
-        LipDetector.init(webcam, webcamCanvas, lipCanvas, $("#lips-area"));
+        mainLipDetector = new LipDetector();
+        mainLipDetector.init(webcam, webcamCanvas, lipCanvas, $("#lips-area"));
         compatibility.requestAnimationFrame(function(){
-            LipDetector.tick();
+            mainLipDetector.tick();
+
         });
     }
     var initWebcam = function(){
@@ -81,9 +111,9 @@ $(function(){
             }
         );
     }
-    $("#lips-area").draggable();
-    webcam.src = "videos/9.mp4";
-    setTimeout(initDemo, 500);
+   $("#lips-area").draggable();
+   webcam.src = "videos/9.mp4";
+   setTimeout(initDemo, 500);
     $(window).unload(function() {
         webcam.pause();
         webcam.src = null;
