@@ -10,6 +10,8 @@
         #samples{
             width:640px;
             height:480px;
+            margin:0;
+            padding:0;
         }
         #photos-container{
             position:relative;
@@ -19,7 +21,8 @@
         }
         #samples li, #images li{
             cursor: pointer;
-            padding: 4px;
+            padding: 0px;
+            
             float:left;
             text-align:center;
             border: 1px solid white;
@@ -37,7 +40,7 @@
             opacity: 0.1;
             cursor:pointer;
         }
-        
+        *{margin:0; padding:0;}
         #photos-container li{
             position:relative;
             float:left;
@@ -58,7 +61,7 @@
     <div style="position:relative; float:left">
     <span id="lips-area"></span>
     <canvas id="lips-canvas" width="640" height="480" style="position:absolute"></canvas>
-    <canvas id="webcam-canvas" width="640" height="480" style="border:1px solid red"></canvas>
+    <canvas id="webcam-canvas" width="640" height="480" ></canvas>
     </div>
     <ul id="samples">
         <li class="cam"><img src="imgs/web-cam.jpg" width="90"  height="90" /> </li>
