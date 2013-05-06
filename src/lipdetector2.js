@@ -1,5 +1,6 @@
 var LipDetector = function(){};
 LipDetector.prototype = {
+
     init:function(webcam, webcamCanvas, lipCanvas, areaLips){
         this.debug = 1;
         this.webcam = webcam;
@@ -12,8 +13,10 @@ LipDetector.prototype = {
         this.width = this.webcam.videoWidth;
         this.height = this.webcam.videoHeight;
     },
+
     draw:function(containerCtx, points, offsetX, offsetY){
 		if(!points || points.length < 2) return;
+
         containerCtx.strokeStyle = "yellow";
 		var min = LipContour.max_mismatch;
 		var max = 0;
@@ -23,11 +26,12 @@ LipDetector.prototype = {
 			if(v > max) max = v;
 		}
         for(var i = 0, n = points.length; i<n; i++){
-			containerCtx.globalAlpha = 1 - (points[i][0]-min) / (max-min);
+			containerCtx.globalAlpha = (1 - (points[i][0]-min) / (max-min)) / 2;
 			var x = offsetX+points[i][1];
 			var y = offsetY+points[i][2];
 			containerCtx.strokeRect(x-1, y-1, 3, 3);
 		}
+
         containerCtx.fillStyle = "magenta";
         containerCtx.globalAlpha = 0.3;
         containerCtx.beginPath();
@@ -39,6 +43,7 @@ LipDetector.prototype = {
         }
         containerCtx.fill();
     },
+
     drawContourForImage:function(areaLips){
         var imageData = this.webcamCanvasCtx.getImageData(areaLips.left, 
                                             areaLips.top, 
@@ -49,6 +54,7 @@ LipDetector.prototype = {
         this.draw(this.lipCanvasCtx, contours, areaLips.left, areaLips.top);
 
     },
+
     tick:function(){
         var self = this;
         this._interval = compatibility.requestAnimationFrame(function(){
@@ -67,6 +73,7 @@ LipDetector.prototype = {
             this.draw(this.lipCanvasCtx, contours, this.areaLips.position().left, this.areaLips.position().top);
         }
     },
+
     stop:function () {
         compatibility.cancelAnimationFrame(this._interval);
     }
