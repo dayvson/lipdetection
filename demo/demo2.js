@@ -69,18 +69,24 @@ $(function(){
                 var _img = document.createElement("canvas");
                 var _lip = document.createElement("canvas");
                 var _li = document.createElement("li");
+                var rect = areaLipsImages[Number(this.getAttribute('rel'))];
+                
                 _img.width = _lip.width = 640;
                 _img.height = _lip.height = 480;
                 _lip.style.position= "absolute";
                 _lip.style.left = "9px";
-                var t = new LipDetector();
-                t.webcam = this;
-                t.init(this, _img, _lip)
-                t.webcamCanvasCtx.drawImage(this, 0, 0, 640, 480);
-                t.drawContourForImage(areaLipsImages[Number(this.getAttribute('rel'))]);
                 _li.appendChild(_img);
                 _li.appendChild(_lip);
                 document.getElementById("p-list").appendChild(_li);
+                
+                var t = new LipDetector();
+                t.webcam = this;
+                
+                t.init(this, _img, _lip)
+                t.webcamCanvasCtx.drawImage(this, 0, 0, 640, 480);
+                t.drawContourForImage(rect);
+                
+                
             });
             img.src = elem.firstChild.src;
 
@@ -109,8 +115,9 @@ $(function(){
             mainLipDetector.tick();
 
         });
-        lipDetectionOnImages();
+        lipDetectionOnImages();    
     }
+    
     var initWebcam = function(){
         compatibility.getUserMedia({video: true}, 
             function(stream) {
