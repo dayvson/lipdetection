@@ -22,14 +22,11 @@ LipDetector.prototype = {
         containerCtx.globalAlpha = 0.3;
         containerCtx.fill();
     },
-    tickImage:function(){
-        this.lipCanvasCtx.clearRect(0, 0, this.width, this.height);
-        this.webcamCanvasCtx.drawImage(this.webcam, 0, 0, this.width, this.height);
-
-        var imageData = this.webcamCanvasCtx.getImageData(this.areaLips.position().left, 
-                                            this.areaLips.position().top, 
-                                            this.areaLips.width(), 
-                                            this.areaLips.height());
+    drawContourForImage:function(areaLips){
+        var imageData = this.webcamCanvasCtx.getImageData(areaLips.left, 
+                                            areaLips.top, 
+                                            areaLips.width, 
+                                            areaLips.height);
         var contours = LipContour.find(imageData);
         this.draw(this.lipCanvasCtx, contours);
 

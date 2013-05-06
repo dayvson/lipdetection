@@ -6,6 +6,17 @@ var areaLipsPositions = [
     {top:220, left:280, width:140, height:74},
     {top:220, left:280, width:140, height:74},
 ]
+
+var areaLipsImages = [
+    {top:235, left:266, width:140, height:74},
+    {top:304, left:256, width:140, height:74},
+    {top:182, left:234, width:140, height:74},
+    {top:213, left:255, width:140, height:74},
+    {top:220, left:280, width:140, height:74},
+    {top:220, left:280, width:140, height:74},
+]
+
+
 $(function(){
     var webcam = document.getElementById("webcam");
     var webcamCanvas = document.getElementById("webcam-canvas");
@@ -29,48 +40,31 @@ $(function(){
         $("#lips-area").offset({top:area.top, left:area.left}).width(area.width).height(area.height);
     }
     // var imgs = [];
-    // $("#images li").each(function(index, elem){
+    $("#images li").each(function(index, elem){
 
-    //     var img = $('<img/>').load(function(e){
-    //         var ii = e.currentTarget;
-    //         var canvas = document.getElementById("p"+ii.getAttribute("rel"));
-    //         var _lip = document.getElementById("l"+ii.getAttribute("rel"));
-    //         var t = new LipDetector()
-    //         t.init(ii, canvas, _lip, $("#lips-area"));
-    //         t.useImage = true;
-    //         t.tickImage();
-    //     }).attr("rel", index+1).attr("src", elem.firstChild.src);
-        
+        var img = document.createElement("img");
+        img.setAttribute("rel",  index+1);
+        img.addEventListener("load", function(){
+            var _img = document.createElement("canvas");
+            var _lip = document.createElement("canvas");
+            var _li = document.createElement("li");
+            _img.width = _lip.width = 640;
+            _img.height = _lip.height = 480;
+            _lip.style.position= "absolute";
+            _lip.style.left = "9px";
+            var t = new LipDetector();
+            t.webcam = this;
 
-    //     // img.rel = index;
-    //     // img.addEventListener("load", function(){
-            
-    //     //     var t = new LipDetector(this, document.getElementById("p"+this.rel), 
-    //     //                             document.getElementById("l"+this.rel), $("#lips-area"));
-    //     //     t.webcam = this;
-    //     //     t.useImage = true;
-    //     //     t.tick();
-    //     //     console.loag
+            t.init(this, _img, _lip)
+            t.webcamCanvasCtx.drawImage(this, 0, 0, 640, 480);
+            t.drawContourForImage({top:235, left:266, width:140, height:74});
+            _li.appendChild(_img);
+            _li.appendChild(_lip);
+            document.getElementById("p-list").appendChild(_li);
+        });
+        img.src = elem.firstChild.src;
 
-    //     //     //t.stop();
-    //     // });
-    //     // img.src = elem.firstChild.src;
-    //     // imgs.push(img);
-    //     // console.log("img", img.src);
-        
-    //     // $(elem).bind("click", function(){
-    //     //     
-    //     //     mainLipDetector.stop();
-    //     //     img.addEventListener("load", function(){
-    //     //         mainLipDetector.useImage = true;
-    //     //         mainLipDetector.webcam = this;
-    //     //         mainLipDetector.tick();
-                    
-    //     //     });
-    //     //     img.src = this.firstChild.src;
-    //     //     updateAreaLipsPosition(this.firstChild.getAttribute('data-index'));
-    //     // });
-    // });
+    });
     $("#samples li").each(function(index, elem){
         $(elem).bind("click", function(){
             mainLipDetector.useImage = false;

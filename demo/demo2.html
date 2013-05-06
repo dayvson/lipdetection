@@ -30,9 +30,14 @@
             cursor:pointer;
         }
         #photos-container {
+            width:640px;
+            clear:both;
             
-            border:1px solid blue;
-            }
+        }
+        #photos-container li{
+            
+            float:left;
+        }
         
     </style>
 </head>
@@ -54,7 +59,7 @@
     <video id="webcam" width="640" height="480" style="display:none;"></video>
     <ul id="images">
 
-        <li><img src="imgs/option000.png" width="90" height="90" data-index="0"/></li>
+        <li><img src="http://localhost/lipdetection/demo/imgs/option000.png" width="90" height="90" data-index="0"/></li> 
         <li><img src="imgs/option001.png" width="90" height="90" data-index="0"/></li>
         <li><img src="imgs/option002.png" width="90" height="90" data-index="0"/></li>
         <li><img src="imgs/option003.png" width="90" height="90" data-index="0"/></li>
@@ -69,7 +74,7 @@
         <li><img src="imgs/option012.png" width="90" height="90" data-index="0"/></li>
         <li><img src="imgs/option013.png" width="90" height="90" data-index="0"/></li>
         
-
+ 
     </ul>
     <ul id="samples">
         <li class="cam"><img src="http://3.bp.blogspot.com/_uyEbIVWiQx4/TE4-4tOYEcI/AAAAAAAAAPg/hXiVLfaOz1c/s1600/web-cam.jpg" width="90"  height="90" /> </li>
@@ -87,10 +92,10 @@
         <li><img src="videos/12.jpg" width="90" data-video="videos/11.mp4" height="90" data-index="1"/></li>
 
     </ul>
-
+        <br />
+        <br />
         <div id="photos-container" width="640" height="480" >
-            <canvas id="p1" width="640" height="480" style="border:1px solid red"></canvas>
-            <canvas id="l1" width="640" height="480" style="border:1px solid red"></canvas>
+            <ul id="p-list"></ul>
         </div>
 </body>
 </html>
