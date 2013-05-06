@@ -74,7 +74,6 @@ $(function(){
             _lip.style.left = "9px";
             var t = new LipDetector();
             t.webcam = this;
-
             t.init(this, _img, _lip)
             t.webcamCanvasCtx.drawImage(this, 0, 0, 640, 480);
             t.drawContourForImage(areaLipsImages[Number(this.getAttribute('rel'))]);
@@ -101,14 +100,14 @@ $(function(){
     
     
     var initDemo = function(){
-        webcam.play();
-    
+        
         mainLipDetector = new LipDetector();
         mainLipDetector.init(webcam, webcamCanvas, lipCanvas, $("#lips-area"));
         compatibility.requestAnimationFrame(function(){
             mainLipDetector.tick();
 
         });
+
     }
     var initWebcam = function(){
         compatibility.getUserMedia({video: true}, 
@@ -126,8 +125,13 @@ $(function(){
         );
     }
    $("#lips-area").draggable();
-   webcam.src = "videos/9.mp4";
-   setTimeout(initDemo, 500);
+    webcam.src = "videos/9.mp4";
+    webcam.autoplay = true;
+    webcam.load();
+    webcam.play();
+    updateAreaLipsPosition(0);
+
+   setTimeout(initDemo, 800);
     $(window).unload(function() {
         webcam.pause();
         webcam.src = null;

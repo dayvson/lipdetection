@@ -41,6 +41,13 @@
         }
         
     </style>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+    <script src="../lib/jsfeat.js"></script>
+    <script src="../lib/compatibility.js"></script>
+    <script src="../src/lipcontour2.js"></script>
+    <script src="../src/lipdetector2.js"></script>
+
 </head>
 <body>
 
@@ -51,16 +58,10 @@
     <canvas id="webcam-canvas" width="640" height="480" style="border:1px solid red"></canvas>
     </div>
 
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
-    <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
-    <script src="../lib/jsfeat.js"></script>
-    <script src="../lib/compatibility.js"></script>
-    <script src="../src/lipcontour2.js"></script>
-    <script src="../src/lipdetector2.js"></script>
-    <script src="demo2.js"></script>
-    <video id="webcam" width="640" height="480" style="display:none;"></video>
+    
+    <video id="webcam" width="640" height="480" style="display:none;" ></video>
     <ul id="samples">
-        <li class="cam"><img src="http://3.bp.blogspot.com/_uyEbIVWiQx4/TE4-4tOYEcI/AAAAAAAAAPg/hXiVLfaOz1c/s1600/web-cam.jpg" width="90"  height="90" /> </li>
+        <li class="cam"><img src="imgs/web-cam.jpg" width="90"  height="90" /> </li>
         <li><img src="videos/9.jpg" width="90" data-video="videos/9.mp4" height="90" data-index="0"/></li>
         <li><img src="videos/10.jpg" width="90" data-video="videos/10.mp4" height="90" data-index="1"/></li>
         <li><img src="videos/8.jpg" width="90" data-video="videos/8.mp4"  height="90" data-index="2"/></li>
@@ -75,7 +76,7 @@
         <li><img src="videos/12.jpg" width="90" data-video="videos/11.mp4" height="90" data-index="1"/></li>
 
     </ul>
-     <ul id="images">
+    <ul id="images">
 
         <li><img src="imgs/option000.png" width="90" height="90" data-index="0"/></li> 
         <li><img src="imgs/option001.png" width="90" height="90" data-index="0"/></li>
@@ -91,13 +92,12 @@
         <li><img src="imgs/option011.png" width="90" height="90" data-index="0"/></li>
         <li><img src="imgs/option012.png" width="90" height="90" data-index="0"/></li>
         <li><img src="imgs/option013.png" width="90" height="90" data-index="0"/></li>
-        
- 
     </ul>
-        <br style="clear:both"/>
-        <br />
-        <div id="photos-container" width="640" height="480">
-            <ul id="p-list"></ul>
-        </div>
+    <br style="clear:both"/>
+    <br />
+    <div id="photos-container" width="640" height="480">
+        <ul id="p-list"></ul>
+    </div>
+    <script src="demo2.js"></script>
 </body>
 </html>
