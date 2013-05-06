@@ -103,8 +103,8 @@ var LipContour = {
 	//////////////////////////////////////// CONTOUR
 
     find:function(imageData){
-		// TODO track all borders at once and stop when they cross?
-		// TODO keep state of al searchs and hold actual colors for each tracking point
+		// TODO track all borders at once and stop when they cross? (optimization)
+		// TODO keep state of all searchs and hold actual colors for each tracking point
 
 		// track borders
         var section = this.findSection(imageData, 7);
@@ -132,7 +132,8 @@ var LipContour = {
 			}
 		}
 
-		// TODO find cross points
+		// TODO find exactly two cross points
+		// TODO hold the position of the cross points
 		// for(var x = section[0][1]; x > 0; x-=dx) {
 		// for(var i in border) {
 		// 	
@@ -142,8 +143,9 @@ var LipContour = {
 		
 
 		// assemble contour
-		// TODO select proper borders
+		// TODO select proper borders (those crossing the cross points)
 		// TODO cleanup noise
+		// TODO select only 3 or 4 borders
 		var contour = [];
 		var dir = 1;
 		for(var i in border) {
