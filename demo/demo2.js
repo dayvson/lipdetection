@@ -17,7 +17,7 @@ var areaLipsImages = [
     {top:208, left:250, width:140, height:74},
     {top:180, left:222, width:140, height:64},
     {top:208, left:245, width:140, height:74},
-    {top:239, left:253, width:140, height:44},
+    {top:209, left:253, width:140, height:70},
     {top:235, left:253, width:140, height:74},
     {top:157, left:225, width:140, height:64},
     {top:292, left:239, width:140, height:74},
