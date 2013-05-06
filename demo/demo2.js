@@ -41,7 +41,18 @@ $(function(){
     }
     // var imgs = [];
     $("#images li").each(function(index, elem){
+        $(elem).click(function(){
+            var img = document.createElement("img");
+            img.addEventListener("load", function(){
+                mainLipDetector.stop();
+                mainLipDetector.webcam = img;
+                mainLipDetector.useImage = true;
+                mainLipDetector.tick();
 
+            });
+            img.src = this.firstChild.src;
+
+        });
         var img = document.createElement("img");
         img.setAttribute("rel",  index+1);
         img.addEventListener("load", function(){
