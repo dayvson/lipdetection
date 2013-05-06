@@ -7,6 +7,10 @@
             list-style-type:none;
 
         }
+        #samples{
+            width:640px;
+            height:480px;
+        }
         #photos-container{
             position:relative;
         }
@@ -51,14 +55,11 @@
 <body>
 
     
-    <div style="position:relative">
+    <div style="position:relative; float:left">
     <span id="lips-area"></span>
     <canvas id="lips-canvas" width="640" height="480" style="position:absolute"></canvas>
     <canvas id="webcam-canvas" width="640" height="480" style="border:1px solid red"></canvas>
     </div>
-
-    
-    <video id="webcam" width="640" height="480" style="display:none;" ></video>
     <ul id="samples">
         <li class="cam"><img src="imgs/web-cam.jpg" width="90"  height="90" /> </li>
         <li><img src="videos/9.jpg" width="90" data-video="videos/9.mp4" height="90" data-index="0"/></li>
@@ -88,11 +89,10 @@
         <li class="img"><img src="imgs/option012.png" width="90" height="90" data-area="12"/></li>
         <li class="img"><img src="imgs/option013.png" width="90" height="90" data-area="13"/></li>
     </ul>
-    <br style="clear:both"/>
-    <br />
     <div id="photos-container" width="640" height="480">
         <ul id="p-list"></ul>
     </div>
+    <video id="webcam" width="640" height="480" style="display:none;" ></video>
     <script src="demo2.js"></script>
 </body>
 </html>
