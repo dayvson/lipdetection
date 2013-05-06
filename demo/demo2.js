@@ -50,7 +50,8 @@ $(function(){
     }
     // var imgs = [];
     var lipDetectionOnImages = function(){
-        $("#images li").each(function(index, elem){
+        $("#samples li").each(function(index, elem){
+            if(!$(elem).hasClass("img")) return;
             $(elem).click(function(){
                 var img = document.createElement("img");
                 img.addEventListener("load", function(){
@@ -64,7 +65,7 @@ $(function(){
 
             });
             var img = document.createElement("img");
-            img.setAttribute("rel",  index);
+            img.setAttribute("rel",  $(elem).children(0).data('area'));
             img.addEventListener("load", function(){
                 var _img = document.createElement("canvas");
                 var _lip = document.createElement("canvas");
@@ -93,6 +94,7 @@ $(function(){
         });
     }
     $("#samples li").each(function(index, elem){
+        if($(elem).hasClass("img")) return;
         $(elem).bind("click", function(){
             mainLipDetector.useImage = false;
             $("#samples li").css({"border":"1px solid white"});
