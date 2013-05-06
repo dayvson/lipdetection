@@ -27,6 +27,7 @@ LipDetector.prototype = {
                                             areaLips.top, 
                                             areaLips.width, 
                                             areaLips.height);
+        this.webcamCanvasCtx.putImageData(imageData, 0, 0);
         var contours = LipContour.find(imageData);
         this.draw(this.lipCanvasCtx, contours);
 

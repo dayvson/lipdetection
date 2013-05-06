@@ -8,12 +8,21 @@ var areaLipsPositions = [
 ]
 
 var areaLipsImages = [
-    {top:235, left:266, width:140, height:74},
-    {top:304, left:256, width:140, height:74},
-    {top:182, left:234, width:140, height:74},
-    {top:213, left:255, width:140, height:74},
-    {top:220, left:280, width:140, height:74},
-    {top:220, left:280, width:140, height:74},
+    {top:200, left:244, width:140, height:74},
+    {top:310, left:261, width:140, height:74},
+    {top:243, left:249, width:140, height:54},
+    {top:225, left:214, width:140, height:74},
+    {top:205, left:254, width:140, height:74},
+    {top:205, left:254, width:140, height:74},
+    {top:208, left:250, width:140, height:74},
+    {top:180, left:222, width:140, height:64},
+    {top:208, left:245, width:140, height:74},
+    {top:239, left:253, width:140, height:44},
+    {top:235, left:253, width:140, height:74},
+    {top:157, left:225, width:140, height:64},
+    {top:292, left:239, width:140, height:74},
+    {top:157, left:289, width:140, height:74}
+    
 ]
 
 
@@ -54,7 +63,7 @@ $(function(){
 
         });
         var img = document.createElement("img");
-        img.setAttribute("rel",  index+1);
+        img.setAttribute("rel",  index);
         img.addEventListener("load", function(){
             var _img = document.createElement("canvas");
             var _lip = document.createElement("canvas");
@@ -68,7 +77,7 @@ $(function(){
 
             t.init(this, _img, _lip)
             t.webcamCanvasCtx.drawImage(this, 0, 0, 640, 480);
-            t.drawContourForImage({top:235, left:266, width:140, height:74});
+            t.drawContourForImage(areaLipsImages[Number(this.getAttribute('rel'))]);
             _li.appendChild(_img);
             _li.appendChild(_lip);
             document.getElementById("p-list").appendChild(_li);

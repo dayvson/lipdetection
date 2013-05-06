@@ -8,6 +8,9 @@
             list-style-type:none;
 
         }
+        #photos-container{
+            position:relative;
+        }
         #samples li:first-child {
             border: 1px solid red;
         }
@@ -40,11 +43,12 @@
     </style>
 </head>
 <body>
+
+    
     <div style="position:relative">
     <span id="lips-area"></span>
     <canvas id="lips-canvas" width="640" height="480" style="position:absolute"></canvas>
     <canvas id="webcam-canvas" width="640" height="480" style="border:1px solid red"></canvas>
-
     </div>
 
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
@@ -73,7 +77,7 @@
     </ul>
      <ul id="images">
 
-        <li><img src="http://localhost/lipdetection/demo/imgs/option000.png" width="90" height="90" data-index="0"/></li> 
+        <li><img src="imgs/option000.png" width="90" height="90" data-index="0"/></li> 
         <li><img src="imgs/option001.png" width="90" height="90" data-index="0"/></li>
         <li><img src="imgs/option002.png" width="90" height="90" data-index="0"/></li>
         <li><img src="imgs/option003.png" width="90" height="90" data-index="0"/></li>
