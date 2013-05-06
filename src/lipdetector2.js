@@ -12,21 +12,21 @@ LipDetector.prototype = {
         this.width = this.webcam.videoWidth;
         this.height = this.webcam.videoHeight;
     },
-    draw:function(containerCtx, points){
-		if(!this.areaLips || !points || points.length < 2) return;
+    draw:function(containerCtx, points, offsetX, offsetY){
+		if(!points || points.length < 2) return;
         containerCtx.strokeStyle = "yellow";
         containerCtx.globalAlpha = 1;
-        for(var i = 0, x = points.length; i<x; i++){
-			var x = this.areaLips.position().left+points[i][1];
-			var y = this.areaLips.position().top+points[i][2];
+        for(var i = 0, n = points.length; i<n; i++){
+			var x = offsetX+points[i][1];
+			var y = offsetY+points[i][2];
 			containerCtx.strokeRect(x-1, y-1, 3, 3);
 		}
         containerCtx.fillStyle = "magenta";
         containerCtx.globalAlpha = 0.3;
         containerCtx.beginPath();
-        for(var i = 0, x = points.length; i<x; i++){
-			var x = this.areaLips.position().left+points[i][1];
-			var y = this.areaLips.position().top+points[i][2];
+        for(var i = 0, n = points.length; i<n; i++){
+			var x = offsetX+points[i][1];
+			var y = offsetY+points[i][2];
             if(i)containerCtx.lineTo(x,y);
             else containerCtx.moveTo(x,y);
         }
@@ -39,7 +39,7 @@ LipDetector.prototype = {
                                             areaLips.height);
         this.webcamCanvasCtx.putImageData(imageData, 0, 0);
         var contours = LipContour.find(imageData);
-        this.draw(this.lipCanvasCtx, contours);
+        this.draw(this.lipCanvasCtx, contours, areaLips.left, areaLips.top);
 
     },
     tick:function(){
@@ -57,7 +57,7 @@ LipDetector.prototype = {
                                                             this.areaLips.height());
             var contours = LipContour.find(imageData);
             this.webcamCanvasCtx.putImageData(imageData, 0, 0);
-            this.draw(this.lipCanvasCtx, contours);
+            this.draw(this.lipCanvasCtx, contours, this.areaLips.position().left, this.areaLips.position().top);
         }
     },
     stop:function () {

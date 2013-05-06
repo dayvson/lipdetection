@@ -49,42 +49,49 @@ $(function(){
         $("#lips-area").offset({top:area.top, left:area.left}).width(area.width).height(area.height);
     }
     // var imgs = [];
-    $("#images li").each(function(index, elem){
-        $(elem).click(function(){
-            var img = document.createElement("img");
-            img.addEventListener("load", function(){
-                mainLipDetector.stop();
-                mainLipDetector.webcam = img;
-                mainLipDetector.useImage = true;
-                mainLipDetector.tick();
+    var lipDetectionOnImages = function(){
+        $("#images li").each(function(index, elem){
+            $(elem).click(function(){
+                var img = document.createElement("img");
+                img.addEventListener("load", function(){
+                    mainLipDetector.stop();
+                    mainLipDetector.webcam = img;
+                    mainLipDetector.useImage = true;
+                    mainLipDetector.tick();
+
+                });
+                img.src = this.firstChild.src;
 
             });
-            img.src = this.firstChild.src;
+            var img = document.createElement("img");
+            img.setAttribute("rel",  index);
+            img.addEventListener("load", function(){
+                var _img = document.createElement("canvas");
+                var _lip = document.createElement("canvas");
+                var _li = document.createElement("li");
+                var rect = areaLipsImages[Number(this.getAttribute('rel'))];
+                
+                _img.width = _lip.width = 640;
+                _img.height = _lip.height = 480;
+                _lip.style.position= "absolute";
+                _lip.style.left = "9px";
+                _li.appendChild(_img);
+                _li.appendChild(_lip);
+                document.getElementById("p-list").appendChild(_li);
+                
+                var t = new LipDetector();
+                t.webcam = this;
+                
+                t.init(this, _img, _lip)
+                t.webcamCanvasCtx.drawImage(this, 0, 0, 640, 480);
+                t.drawContourForImage(rect);
+                
+                
+            });
+            img.src = elem.firstChild.src;
 
         });
-        var img = document.createElement("img");
-        img.setAttribute("rel",  index);
-        img.addEventListener("load", function(){
-            var _img = document.createElement("canvas");
-            var _lip = document.createElement("canvas");
-            var _li = document.createElement("li");
-            _img.width = _lip.width = 640;
-            _img.height = _lip.height = 480;
-            _lip.style.position= "absolute";
-            _lip.style.left = "9px";
-            var t = new LipDetector();
-            t.webcam = this;
-
-            t.init(this, _img, _lip)
-            t.webcamCanvasCtx.drawImage(this, 0, 0, 640, 480);
-            t.drawContourForImage(areaLipsImages[Number(this.getAttribute('rel'))]);
-            _li.appendChild(_img);
-            _li.appendChild(_lip);
-            document.getElementById("p-list").appendChild(_li);
-        });
-        img.src = elem.firstChild.src;
-
-    });
+    }
     $("#samples li").each(function(index, elem){
         $(elem).bind("click", function(){
             mainLipDetector.useImage = false;
@@ -101,15 +108,16 @@ $(function(){
     
     
     var initDemo = function(){
-        webcam.play();
-    
+        
         mainLipDetector = new LipDetector();
         mainLipDetector.init(webcam, webcamCanvas, lipCanvas, $("#lips-area"));
         compatibility.requestAnimationFrame(function(){
             mainLipDetector.tick();
 
         });
+        lipDetectionOnImages();    
     }
+    
     var initWebcam = function(){
         compatibility.getUserMedia({video: true}, 
             function(stream) {
@@ -126,8 +134,13 @@ $(function(){
         );
     }
    $("#lips-area").draggable();
-   webcam.src = "videos/9.mp4";
-   setTimeout(initDemo, 500);
+    webcam.src = "videos/9.mp4";
+    webcam.autoplay = true;
+    webcam.load();
+    webcam.play();
+    updateAreaLipsPosition(0);
+
+   setTimeout(initDemo, 800);
     $(window).unload(function() {
         webcam.pause();
         webcam.src = null;
