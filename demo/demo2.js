@@ -17,7 +17,7 @@ var areaLipsImages = [
     {top:208, left:250, width:140, height:74},
     {top:180, left:222, width:140, height:64},
     {top:208, left:245, width:140, height:74},
-    {top:239, left:253, width:140, height:44},
+    {top:209, left:253, width:140, height:70},
     {top:235, left:253, width:140, height:74},
     {top:157, left:225, width:140, height:64},
     {top:292, left:239, width:140, height:74},
@@ -50,7 +50,8 @@ $(function(){
     }
     // var imgs = [];
     var lipDetectionOnImages = function(){
-        $("#images li").each(function(index, elem){
+        $("#samples li").each(function(index, elem){
+            if(!$(elem).hasClass("img")) return;
             $(elem).click(function(){
                 var img = document.createElement("img");
                 img.addEventListener("load", function(){
@@ -64,7 +65,7 @@ $(function(){
 
             });
             var img = document.createElement("img");
-            img.setAttribute("rel",  index);
+            img.setAttribute("rel",  $(elem).children(0).data('area'));
             img.addEventListener("load", function(){
                 var _img = document.createElement("canvas");
                 var _lip = document.createElement("canvas");
@@ -93,6 +94,7 @@ $(function(){
         });
     }
     $("#samples li").each(function(index, elem){
+        if($(elem).hasClass("img")) return;
         $(elem).bind("click", function(){
             mainLipDetector.useImage = false;
             $("#samples li").css({"border":"1px solid white"});

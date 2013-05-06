@@ -4,9 +4,14 @@
     <style>
         #samples, #images{
             float:left;
-            width:1200;
             list-style-type:none;
 
+        }
+        #samples{
+            width:640px;
+            height:480px;
+            margin:0;
+            padding:0;
         }
         #photos-container{
             position:relative;
@@ -16,7 +21,8 @@
         }
         #samples li, #images li{
             cursor: pointer;
-            padding: 4px;
+            padding: 0px;
+            
             float:left;
             text-align:center;
             border: 1px solid white;
@@ -34,7 +40,7 @@
             opacity: 0.1;
             cursor:pointer;
         }
-        
+        *{margin:0; padding:0;}
         #photos-container li{
             position:relative;
             float:left;
@@ -52,14 +58,11 @@
 <body>
 
     
-    <div style="position:relative">
+    <div style="position:relative; float:left">
     <span id="lips-area"></span>
     <canvas id="lips-canvas" width="640" height="480" style="position:absolute"></canvas>
-    <canvas id="webcam-canvas" width="640" height="480" style="border:1px solid red"></canvas>
+    <canvas id="webcam-canvas" width="640" height="480" ></canvas>
     </div>
-
-    
-    <video id="webcam" width="640" height="480" style="display:none;" ></video>
     <ul id="samples">
         <li class="cam"><img src="imgs/web-cam.jpg" width="90"  height="90" /> </li>
         <li><img src="videos/9.jpg" width="90" data-video="videos/9.mp4" height="90" data-index="0"/></li>
@@ -74,30 +77,25 @@
         <li><img src="videos/1.jpg" width="90" data-video="videos/1.mp4"  height="90" data-index="5"/></li>
         <li><img src="videos/11.jpg" width="90" data-video="videos/12.mp4" height="90" data-index="1"/></li>
         <li><img src="videos/12.jpg" width="90" data-video="videos/11.mp4" height="90" data-index="1"/></li>
-
+        <li class="img"><img src="imgs/option000.png" width="90" height="90" data-area="0"/></li> 
+        <li class="img"><img src="imgs/option001.png" width="90" height="90" data-area="1"/></li>
+        <li class="img"><img src="imgs/option002.png" width="90" height="90" data-area="2"/></li>
+        <li class="img"><img src="imgs/option003.png" width="90" height="90" data-area="3"/></li>
+        <li class="img"><img src="imgs/option004.png" width="90" height="90" data-area="4"/></li>
+        <li class="img"><img src="imgs/option005.png" width="90" height="90" data-area="5"/></li>
+        <li class="img"><img src="imgs/option006.png" width="90" height="90" data-area="6"/></li>
+        <li class="img"><img src="imgs/option007.png" width="90" height="90" data-area="7"/></li>
+        <li class="img"><img src="imgs/option008.png" width="90" height="90" data-area="8"/></li>
+        <li class="img"><img src="imgs/option009.png" width="90" height="90" data-area="9"/></li>
+        <li class="img"><img src="imgs/option010.png" width="90" height="90" data-area="10"/></li>
+        <li class="img"><img src="imgs/option011.png" width="90" height="90" data-area="11"/></li>
+        <li class="img"><img src="imgs/option012.png" width="90" height="90" data-area="12"/></li>
+        <li class="img"><img src="imgs/option013.png" width="90" height="90" data-area="13"/></li>
     </ul>
-    <ul id="images">
-
-        <li><img src="imgs/option000.png" width="90" height="90" data-index="0"/></li> 
-        <li><img src="imgs/option001.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option002.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option003.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option004.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option005.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option006.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option007.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option008.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option009.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option010.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option011.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option012.png" width="90" height="90" data-index="0"/></li>
-        <li><img src="imgs/option013.png" width="90" height="90" data-index="0"/></li>
-    </ul>
-    <br style="clear:both"/>
-    <br />
     <div id="photos-container" width="640" height="480">
         <ul id="p-list"></ul>
     </div>
+    <video id="webcam" width="640" height="480" style="display:none;" ></video>
     <script src="demo2.js"></script>
 </body>
 </html>
