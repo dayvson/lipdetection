@@ -1,0 +1,103 @@
+<html>
+<head>
+    <title>Lib detection demo</title>
+    <style>
+        #samples, #images{
+            float:left;
+            list-style-type:none;
+
+        }
+        #samples{
+            width:640px;
+            height:480px;
+            margin:0;
+            padding:0;
+        }
+        #photos-container{
+            position:relative;
+        }
+        #samples li:first-child {
+            border: 1px solid red;
+        }
+        #samples li, #images li{
+            cursor: pointer;
+            padding: 0px;
+            
+            float:left;
+            text-align:center;
+            border: 1px solid white;
+        }
+
+        #lips-area {
+            width:130px;
+            height:70px;
+            z-index:10;
+            position:absolute;
+            border:1px solid blue;
+            top:300px;
+            left:250px;
+            background: #ffcc00;
+            opacity: 0.1;
+            cursor:pointer;
+        }
+        *{margin:0; padding:0;}
+        #photos-container li{
+            position:relative;
+            float:left;
+        }
+        
+    </style>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+    <script src="../lib/jsfeat.js"></script>
+        <script src="../lib/cascades/mouth.js"></script>
+    <script src="../lib/cascades/frontalface.js"></script>
+    <script src="../lib/cascades/eye.js"></script>
+    <script src="../lib/compatibility.js"></script>
+    <script src="../src/lipcontour.js"></script>
+
+
+</head>
+<body>
+
+    
+    <div style="position:relative; float:left">
+    <span id="lips-area"></span>
+    <canvas id="lips-canvas" width="640" height="480" style="position:absolute"></canvas>
+    <canvas id="webcam-canvas" width="640" height="480" ></canvas>
+    </div>
+    <a href="#" id="take-picture">take picture</a>
+    <a href="#" id="clear">clear</a>
+    <ul id="samples">
+        <li class="cam"><img src="imgs/web-cam.jpg" width="90"  height="90" /> </li>
+        <li><img src="videos/9.jpg" width="90" data-video="videos/9.mp4" height="90" data-index="0"/></li>
+        <li><img src="videos/10.jpg" width="90" data-video="videos/10.mp4" height="90" data-index="1"/></li>
+        <li><img src="videos/8.jpg" width="90" data-video="videos/8.mp4"  height="90" data-index="2"/></li>
+        <li><img src="videos/7.jpg" width="90" data-video="videos/7.mp4"  height="90" data-index="3"/></li>
+        <li><img src="videos/6.jpg" width="90" data-video="videos/6.mp4"  height="90" data-index="3"/></li>
+        <li><img src="videos/5.jpg" width="90" data-video="videos/5.mp4"  height="90" data-index="3"/></li>
+        <li><img src="videos/4.jpg" width="90" data-video="videos/4.mp4"  height="90" data-index="3"/></li>
+        <li><img src="videos/3.jpg" width="90" data-video="videos/3.mp4"  height="90" data-index="3"/></li>
+        <li><img src="videos/2.jpg" width="90" data-video="videos/2.mp4"  height="90" data-index="4"/></li>
+        <li><img src="videos/1.jpg" width="90" data-video="videos/1.mp4"  height="90" data-index="5"/></li>
+        <li><img src="videos/11.jpg" width="90" data-video="videos/12.mp4" height="90" data-index="1"/></li>
+        <li><img src="videos/12.jpg" width="90" data-video="videos/11.mp4" height="90" data-index="1"/></li>
+        <li class="img"><img src="imgs/option000.png" width="90" height="90" data-area="0"/></li> 
+        <li class="img"><img src="imgs/option001.png" width="90" height="90" data-area="1"/></li>
+        <li class="img"><img src="imgs/option002.png" width="90" height="90" data-area="2"/></li>
+        <li class="img"><img src="imgs/option003.png" width="90" height="90" data-area="3"/></li>
+        <li class="img"><img src="imgs/option004.png" width="90" height="90" data-area="4"/></li>
+        <li class="img"><img src="imgs/option005.png" width="90" height="90" data-area="5"/></li>
+        <li class="img"><img src="imgs/option006.png" width="90" height="90" data-area="6"/></li>
+        <li class="img"><img src="imgs/option007.png" width="90" height="90" data-area="7"/></li>
+        <li class="img"><img src="imgs/option008.png" width="90" height="90" data-area="8"/></li>
+        <li class="img"><img src="imgs/option009.png" width="90" height="90" data-area="9"/></li>
+        <li class="img"><img src="imgs/option010.png" width="90" height="90" data-area="10"/></li>
+        <li class="img"><img src="imgs/option011.png" width="90" height="90" data-area="11"/></li>
+        <li class="img"><img src="imgs/option012.png" width="90" height="90" data-area="12"/></li>
+        <li class="img"><img src="imgs/option013.png" width="90" height="90" data-area="13"/></li>
+    </ul>
+    <video id="webcam" width="640" height="480" style="display:none;" ></video>
+    <script src="demo1.js"></script>
+</body>
+</html>
