@@ -312,10 +312,10 @@ var LipDetector = {
             height: this.mouth.height + this.mouth.height*border*3
         };
 
-        ctx.strokeStyle = "cyan"
-        ctx.strokeRect(median.x-1, median.y-1, 3, 3);
-        this.drawRectangle(ctx,this.mouth,'red');
-        this.drawRectangle(ctx,mask,'cyan');
+        // ctx.strokeStyle = "cyan"
+        // ctx.strokeRect(median.x-1, median.y-1, 3, 3);
+        // this.drawRectangle(ctx,this.mouth,'red');
+        // this.drawRectangle(ctx,mask,'cyan');
 
 
         // remove outliers (far from median)
@@ -1011,22 +1011,14 @@ var LipDetector = {
         upper_face = this.getUpperFaceArea(face);
         eye_mask = this.getEyeArea(face);
         work = face ? this.small_work_area: this.large_work_area;
-
-
-        //mouth = this.haar(jsfeat.haar.mouth, this.webcam, lower_face, work)[0];
         mouth = {x:this.areaLips.position().left,
                 y:this.areaLips.position().top, 
                 width:this.areaLips.width(),
                 height:this.areaLips.height(),
                 confidence:1.5, neighbors:10};
-        //console.log(mouth);
-        
-
         eyes = [];
    
         this.block = this.getEyesAndUpperFaceUnionArea(eyes, face, upper_face, this.block);
-        //console.log(this.block);
-        this.drawRectangle(this.lipCanvasCtx, this.block, "black");
 
         this.matchMouthModel(mouth);
         this.trackMouthModel(mouth);
@@ -1072,17 +1064,18 @@ var LipDetector = {
                 this.reset();
                 this.stop();
                 this.saveImage = false;
+                this.onBestLipDetected();
             }
             
         }else{
             this.processFrame();    
         }
     },
-    captureLips:function(){
-
+    getContours:function(){
+        return this.top_contour;
     },
-    getLips:function(){
-        return null;
+    getLipsImageData:function(){
+        return this.lipCanvasCtx.getImageData(0,0, this.lipCanvas.width,this.lipCanvas.height);
     }, 
     stop:function () {
         compatibility.cancelAnimationFrame(this._interval);
