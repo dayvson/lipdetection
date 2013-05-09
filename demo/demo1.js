@@ -34,9 +34,7 @@ $(function(){
     var loadVideo = function(url){
         LipDetector.stop();
         LipDetector.webcam = webcam;
-        LipDetector.webcam.addEventListener('ended', function(){
-            LipDetector.webcam.play();
-        });
+        
 
         LipDetector.webcam.src = url;
         LipDetector.webcam.load();
