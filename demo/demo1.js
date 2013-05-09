@@ -115,7 +115,7 @@ $(function(){
     $("#take-picture").click(function(){
         LipDetector.saveImage = true;
         try{
-            webcam.pause();
+            //webcam.pause();
         }catch(e){};
         return false;
     });
