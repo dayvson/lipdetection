@@ -112,8 +112,10 @@ var LipDetector = {
 
         this.shape = [];
         for(var i=0; i<this.shape_base.length; i++) {
-            this.shape[i] = {x:this.shape_base[i].x * this.scale_factor * this.areaLips.width() + this.areaLips.position().left, 
-                y: this.shape_base[i].y * this.scale_factor * this.areaLips.height() + this.areaLips.position().top}
+            this.shape[i] = {
+				x: this.shape_base[i].x * this.areaLips.width()/4 + this.areaLips.width()/2 + this.areaLips.position().left, 
+                y: this.shape_base[i].y * this.areaLips.height()/4 + this.areaLips.height()/2 + this.areaLips.position().top
+			}
         }
 
         this.cube_size = 24;
