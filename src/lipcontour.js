@@ -181,7 +181,7 @@ var LipDetector = {
         this.prev_xy = new Float32Array(this.point_max_count * 2);
         this.curr_xy = new Float32Array(this.point_max_count * 2);
 
-        this.top_countdown_max = 0;
+        this.top_countdown_max = 2;
     },
     init:function(webcam, webcamCanvas, lipCanvas, areaLips){
         this.debug = 1;
@@ -1063,7 +1063,7 @@ var LipDetector = {
         }
         
         if(this.saveImage){
-            if(this.framesSelected.length < 60){
+            if(this.framesSelected.length < 180){
                 this.framesSelected.push(this.webcamCanvasCtx.getImageData(0, 0, this.width, this.height));
             }else{
                 this.webcamCanvasCtx.clearRect(0,0, this.width, this.height);
