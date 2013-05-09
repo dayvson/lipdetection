@@ -1044,6 +1044,8 @@ var LipDetector = {
         }
     },
     saveImage:false,
+    framesSelected:[],
+    indexFrame:0,
     tick:function(){
         var face, lower_face, upper_face, eye_mask, work, mouth, eyes;
         this._interval = compatibility.requestAnimationFrame(function(){
@@ -1059,13 +1061,23 @@ var LipDetector = {
         }
         
         if(this.saveImage){
-            if(this.testPuckerMatch()){
-                this.drawContour();
-                this.reset();
-                this.stop();
-                this.saveImage = false;
-                this.onBestLipDetected();
+            if(this.framesSelected.length < 60){
+                this.framesSelected.push(this.webcamCanvasCtx.getImageData(0, 0, this.width, this.height));
+            }else{
+                //this.webcamCanvasCtx.clearRect(0,0, this.width, this.height);
+                this.webcamCanvasCtx.putImageData(this.framesSelected[this.indexFrame], 0, 0);
+                if(this.testPuckerMatch()){
+                    this.drawContour();
+                    this.reset();
+                    this.stop();
+                    this.saveImage = false;
+                    this.framesSelected = [];
+                    this.indexFrame  = 0;
+                    this.onBestLipDetected();
+                }
+                this.indexFrame = Math.min(this.framesSelected.length-1, this.indexFrame + 1);
             }
+            
             
         }else{
             this.processFrame();    
