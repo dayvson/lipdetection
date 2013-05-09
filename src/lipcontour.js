@@ -1054,7 +1054,7 @@ var LipDetector = {
             LipDetector.tick();
         });
         this.lipCanvasCtx.clearRect(0, 0, this.width, this.height);
-        if ((this.webcam.readyState === this.webcam.HAVE_ENOUGH_DATA || this.useImage)  && !this.saveImage) {
+        if ((this.webcam.readyState === this.webcam.HAVE_ENOUGH_DATA || this.useImage)) {
             this.debugPos = 0;
             
             this.webcamCanvasCtx.globalAlpha = 0.75;
@@ -1066,8 +1066,9 @@ var LipDetector = {
             if(this.framesSelected.length < 60){
                 this.framesSelected.push(this.webcamCanvasCtx.getImageData(0, 0, this.width, this.height));
             }else{
-                //this.webcamCanvasCtx.clearRect(0,0, this.width, this.height);
+                this.webcamCanvasCtx.clearRect(0,0, this.width, this.height);
                 this.webcamCanvasCtx.putImageData(this.framesSelected[this.indexFrame], 0, 0);
+                console.log(this.indexFrame);
                 if(this.testPuckerMatch()){
                     this.drawContour();
                     this.reset();
