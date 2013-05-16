@@ -1,11 +1,11 @@
 var LipContour = {
 
-	num_tracks: 4,
+	num_tracks: 8,
 	border: 1, // at least 1
 	max_mismatch: 999999999999,
 	clearance_range_factor: 0.05,
-	search_range_factor: 0.15,
-	reference_factor: 0.5,
+	search_range_factor: 0.1,
+	reference_factor: 0.1,
 
 	getComponent:function(imageData, x,y, c) {
 		return imageData.data[(x + y*imageData.width)*4+c];
@@ -66,14 +66,14 @@ var LipContour = {
 	//////////////////////////////////////// BORDER
 
 	getBorderSampleComponent:function(imageData, x,y, dx,dy, c) {
-		return {
-			'11': this.getComponent(imageData,x,y,c),
-			'20': this.getComponent(imageData,x+dx,y+dy-this.border,c),
-			'21': this.getComponent(imageData,x+dx,y+dy,c),
-			'22': this.getComponent(imageData,x+dx,y+dy+this.border,c),
-			'10': this.getComponent(imageData,x,y-this.border,c),
-			'12': this.getComponent(imageData,x,y-this.border,c)
-		};
+		return [
+			this.getComponent(imageData,x,y,c),
+			this.getComponent(imageData,x+dx,y+dy-this.border,c),
+			this.getComponent(imageData,x+dx,y+dy,c),
+			this.getComponent(imageData,x+dx,y+dy+this.border,c),
+			this.getComponent(imageData,x,y-this.border,c),
+			this.getComponent(imageData,x,y-this.border,c)
+		];
 	},
 
 	getBorderSample:function(imageData, x,y, dx,dy) {
@@ -84,29 +84,53 @@ var LipContour = {
 		];
 	},
 
+	mixSamples:function(a, b, factor) {
+
+		var f0 = factor, f1 = 1-f0;
+
+		return [
+			[
+				a[0][0] * f0 + b[0][0] * f1,
+				a[0][1] * f0 + b[0][1] * f1,
+				a[0][2] * f0 + b[0][2] * f1,
+				a[0][3] * f0 + b[0][3] * f1,
+				a[0][4] * f0 + b[0][4] * f1,
+				a[0][5] * f0 + b[0][5] * f1
+			],
+			[
+				a[1][0] * f0 + b[1][0] * f1,
+				a[1][1] * f0 + b[1][1] * f1,
+				a[1][2] * f0 + b[1][2] * f1,
+				a[1][3] * f0 + b[1][3] * f1,
+				a[1][4] * f0 + b[1][4] * f1,
+				a[1][5] * f0 + b[1][5] * f1
+			],
+			[
+				a[2][0] * f0 + b[2][0] * f1,
+				a[2][1] * f0 + b[2][1] * f1,
+				a[2][2] * f0 + b[2][2] * f1,
+				a[2][3] * f0 + b[2][3] * f1,
+				a[2][4] * f0 + b[2][4] * f1,
+				a[2][5] * f0 + b[2][5] * f1
+			]
+		];
+	},
+
+
 	getBorderMismatchComponent:function(imageData, ref, x,y, dx,dy, c) {
 		var sample = this.getBorderSampleComponent(imageData, x,y, dx,dy, c);
 
-		var f0 = this.reference_factor, f1 = 1-f0;
+		var r20 = sample[1] - ref[c][1];
+		var r21 = sample[2] - ref[c][2];
+		var r22 = sample[3] - ref[c][3];
+		var r10 = sample[4] - ref[c][4];
+		var r12 = sample[5] - ref[c][5];
 
-		ref[c]['11'] = ref[c]['11'] * f0 + sample['11'] * f1;
-		ref[c]['20'] = ref[c]['20'] * f0 + sample['11'] * f1;
-		ref[c]['21'] = ref[c]['21'] * f0 + sample['11'] * f1;
-		ref[c]['22'] = ref[c]['22'] * f0 + sample['11'] * f1;
-		ref[c]['10'] = ref[c]['10'] * f0 + sample['11'] * f1;
-		ref[c]['12'] = ref[c]['12'] * f0 + sample['11'] * f1;
-
-		var r20 = sample['20'] - ref[c]['20'];
-		var r21 = sample['21'] - ref[c]['21'];
-		var r22 = sample['22'] - ref[c]['22'];
-		var r10 = sample['10'] - ref[c]['10'];
-		var r12 = sample['12'] - ref[c]['12'];
-
-		var s20 = sample['20'] - sample['11'];
-		var s21 = sample['21'] - sample['11'];
-		var s22 = sample['22'] - sample['11'];
-		var s10 = sample['10'] - sample['11'];
-		var s12 = sample['12'] - sample['11'];
+		var s20 = sample[1] - sample[0];
+		var s21 = sample[2] - sample[0];
+		var s22 = sample[3] - sample[0];
+		var s10 = sample[4] - sample[0];
+		var s12 = sample[5] - sample[0];
 
 		return (
 			r20*r20 + r21*r21 + r22*r22 + r10*r10 + r12*r12 +
@@ -140,14 +164,13 @@ var LipContour = {
     find:function(imageData){
 
 		// TODO track all borders at once and stop when they cross?
-		// TODO keep state of all searches
-		// TODO hold actual color state for each tracking point
+		// TODO keep track of multiple possibilities up to a point and backtrack to the better one
 
 		// track borders
         var section = this.findSection(imageData, this.num_tracks);
 		section.sort(function(a,b) {return a[2] - b[2]}); // y-order
 		var track = [];
-		var ref, x, y, dy, dx = this.border;
+		var x, y, dy, dx = this.border;
 		for(var i in section) {
 			track[i] = {
 				node: [section[i]]
@@ -157,8 +180,9 @@ var LipContour = {
 			dy = 0;
 			x = section[i][1];
 			y = section[i][2];
-			ref = this.getBorderSample(imageData, x,y, -dx,dy);
+			var ref = this.getBorderSample(imageData, x,y, -dx,dy);
 			for(x-=dx; x > 0; x-=dx) {
+				ref = this.mixSamples(ref, this.getBorderSample(imageData, x,y, -dx,dy), this.reference_factor);
 				var node = this.trackBorder(imageData, ref, x,y, -dx,dy);
 				track[i].node.push(node);
 				dy = Math.floor((node[2] - y)/2);
@@ -169,8 +193,9 @@ var LipContour = {
 			dy = 0;
 			x = section[i][1];
 			y = section[i][2];
-			ref = this.getBorderSample(imageData, x,y, dx,dy);
+			var ref = this.getBorderSample(imageData, x,y, dx,dy);
 			for(x+=dx; x < imageData.width; x+=dx) {
+				ref = this.mixSamples(ref, this.getBorderSample(imageData, x,y, dx,dy), this.reference_factor);
 				var node = this.trackBorder(imageData, ref, x,y, dx,dy);
 				track[i].node.unshift(node);
 				dy = Math.floor((node[2] - y)/2);
