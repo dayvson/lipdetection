@@ -29,7 +29,12 @@ LipDetector.prototype = {
 			containerCtx.globalAlpha = (1 - (points[i][0]-min) / (max-min)) / 2;
 			var x = offsetX+points[i][1];
 			var y = offsetY+points[i][2];
-			containerCtx.strokeRect(x-1, y-1, 3, 3);
+			containerCtx.strokeRect(
+				x-LipContour.border, 
+				y-LipContour.border, 
+				1+LipContour.border*2, 
+				1+LipContour.border*2
+			);
 		}
 
         containerCtx.fillStyle = "magenta";
@@ -41,7 +46,7 @@ LipDetector.prototype = {
             if(i)containerCtx.lineTo(x,y);
             else containerCtx.moveTo(x,y);
         }
-        containerCtx.fill();
+        //containerCtx.fill();
     },
 
     drawContourForImage:function(areaLips){
