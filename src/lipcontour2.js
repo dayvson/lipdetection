@@ -8,7 +8,8 @@ var LipContour = {
 	clearance_range_factor: 0.05, // clear section points closer than this factor times height
 	search_range_factor: 0.1, // scan up and down for tracking horizontal lines this ammount times height
 	reference_factor: 0.95, // for each step this is the weight of the reference track points color that is kept for the next step
-	crossPoint: [[0,0,0],[0,0,0]],
+	min_width: 0.25, // minimum mouth length wide to each side in relation to the image size
+	//crossPoint: [[0,0,0],[0,0,0]],
 
 	getComponent:function(imageData, x,y, c) {
 		return imageData.data[(x + y*imageData.width)*4+c];
@@ -252,9 +253,12 @@ var LipContour = {
 	findCrossPoints:function(imageData, track) {
 		// TODO find the crosspoints comparing the distance between points and not the histogram (the later may cause aliasing)
 
+		var min_width = imageData.width * this.min_width;
 		var cx = Math.floor(imageData.width/2);
 		var cy = Math.floor(imageData.height/2);
-		var crossPoint = [[0, cx, cy], [0, cx, cy]];
+		var cx0 = cx - min_width;
+		var cx1 = cx + min_width;
+		var crossPoint = [[0, cx0, cy], [0, cx1, cy]];
 
 		var decimation = this.track_spacing;
 		var w = imageData.width / decimation,
@@ -267,9 +271,14 @@ var LipContour = {
 
 		for(var i in track) {
 			for(var j in track[i].node) {
-				var x = Math.floor(track[i].node[j][1] / decimation),
-				    y = Math.floor(track[i].node[j][2] / decimation);
-				histogram[x+y*w] += 1-track[i].node[j][0];
+				var x = Math.floor(track[i].node[j][1]),
+				    y = Math.floor(track[i].node[j][2]);
+				if(x > cx0 && x < cx1)
+					continue;
+				var div = 1+Math.abs(x - cx);
+ 				x /= decimation;
+				y /= decimation;
+				histogram[x+y*w] += (1-track[i].node[j][0]) / div;
 			}
 		}
 
@@ -361,28 +370,25 @@ var LipContour = {
 
 
 		// find exactly two cross points
-		{
-			// TODO keep the state of the position of the cross points, merge across time
-			var crossPoint = this.findCrossPoints(imageData, track);
-			{ // left
-				var f = this.crossPoint[0][0] + this.crossPoint[0][0], 
-				    f0 = this.crossPoint[0][0] / f, 
-				    f1 = crossPoint[0][0] / f;
-				this.crossPoint[0][0] = crossPoint[0][0];
-				this.crossPoint[0][1] = this.crossPoint[0][1] * f0 + f1 * crossPoint[0][1];
-				this.crossPoint[0][2] = this.crossPoint[0][2] * f0 + f1 * crossPoint[0][2];
-			}
-			{ // right
-				var f = this.crossPoint[0][0] + this.crossPoint[0][0], 
-				    f0 = this.crossPoint[0][0] / f, 
-				    f1 = crossPoint[0][0] / f;
-				this.crossPoint[1][0] = crossPoint[1][0];
-				this.crossPoint[1][1] = this.crossPoint[1][1] * f0 + f1 * crossPoint[1][1];
-				this.crossPoint[1][2] = this.crossPoint[1][2] * f0 + f1 * crossPoint[1][2];
-			}
-		}
+		// TODO keep the state of the position of the cross points, merge across time
+		var crossPoint = this.findCrossPoints(imageData, track);
+		//{ // left
+		//	var f = this.crossPoint[0][0] + this.crossPoint[0][0], 
+		//		f0 = this.crossPoint[0][0] / f, 
+		//		f1 = crossPoint[0][0] / f;
+		//	this.crossPoint[0][0] = crossPoint[0][0];
+		//	this.crossPoint[0][1] = this.crossPoint[0][1] * f0 + f1 * crossPoint[0][1];
+		//	this.crossPoint[0][2] = this.crossPoint[0][2] * f0 + f1 * crossPoint[0][2];
+		//}
+		//{ // right
+		//	var f = this.crossPoint[0][0] + this.crossPoint[0][0], 
+		//		f0 = this.crossPoint[0][0] / f, 
+		//		f1 = crossPoint[0][0] / f;
+		//	this.crossPoint[1][0] = crossPoint[1][0];
+		//	this.crossPoint[1][1] = this.crossPoint[1][1] * f0 + f1 * crossPoint[1][1];
+		//	this.crossPoint[1][2] = this.crossPoint[1][2] * f0 + f1 * crossPoint[1][2];
+		//}
 
-		
 		// TODO select proper borders (those crossing the cross points)
 		// TODO cleanup noise
 
@@ -396,7 +402,7 @@ var LipContour = {
 				j_min_max = j_min_max.reverse();
 			
 			for(var j = j_min_max[0]; j != j_min_max[1]; j+=dir) {
-				if(track[i].node[j][1] < this.crossPoint[0][1] || track[i].node[j][1] > this.crossPoint[1][1])
+				if(track[i].node[j][1] < crossPoint[0][1] || track[i].node[j][1] > crossPoint[1][1])
 					continue;
 				contour.push(track[i].node[j]);
 			}
