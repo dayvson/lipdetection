@@ -1,11 +1,13 @@
 var LipContour = {
 
-	num_tracks: 8,
-	border: 1, // at least 1
-	max_mismatch: 999999999999,
-	clearance_range_factor: 0.05,
-	search_range_factor: 0.1,
-	reference_factor: 0.1,
+	num_sections: 3, // number of sections to find the starting track points
+	num_tracks: 6, // number of lines to track per section per colorspace
+	use_rgb: true, // merge rgb and hsl border tracking
+	use_hsl: true, // merge rgb and hsl border tracking
+	track_spacing: 2, // at least 1, spacing between tracking points
+	clearance_range_factor: 0.05, // clear section points closer than this factor times height
+	search_range_factor: 0.1, // scan up and down for tracking horizontal lines this ammount times height
+	reference_factor: 0.95, // for each step this is the weight of the reference track points color that is kept for the next step
 
 	getComponent:function(imageData, x,y, c) {
 		return imageData.data[(x + y*imageData.width)*4+c];
@@ -16,10 +18,10 @@ var LipContour = {
 	getSectionMismatchComponent:function(imageData, x,y, c) {
 		// TODO two modes upper/lower highlight ?
 		var p11 = this.getComponent(imageData,x,y,c);
-		var p10 = this.getComponent(imageData,x,y-this.border,c);
-		var p12 = this.getComponent(imageData,x,y+this.border,c);
-		var p01 = this.getComponent(imageData,x-this.border,y,c);
-		var p21 = this.getComponent(imageData,x+this.border,y,c);
+		var p10 = this.getComponent(imageData,x,y-this.track_spacing,c);
+		var p12 = this.getComponent(imageData,x,y+this.track_spacing,c);
+		var p01 = this.getComponent(imageData,x-this.track_spacing,y,c);
+		var p21 = this.getComponent(imageData,x+this.track_spacing,y,c);
 
 		var d10 = p10 - p11;
 		var d12 = p12 - p11;
@@ -36,31 +38,40 @@ var LipContour = {
 		return r*r + g*g + b*b;
 	},
 
-	findSection:function(imageData, limit) {
+	findSection:function(imageData, limit, offset) {
 		// compute edges
 		var section = [];
-		var x = imageData.width/2;
-		for(var y = this.border; y < imageData.height-this.border ; y++) {
+		var x = Math.round(imageData.width/2 + offset);
+		for(var y = this.track_spacing; y < imageData.height-this.track_spacing ; y++) {
 			section[y] = [this.getSectionMismatch(imageData,x,y), x,y];
 		}
 
 		// find local minima
-		var rank = section.slice(0).sort();
+		var INVALID = Number.MAX_VALUE;
+		var rank = section.slice(0).sort(); // copy and sort
+		var clearance_range = Math.ceil(imageData.height*this.clearance_range_factor);
 		for(var i in rank) {
 			var y = rank[i][2];
-			if(section[y][0] == this.max_mismatch)
+			if(section[y][0] == INVALID)
 				continue;
-			var clearance_range = Math.ceil(imageData.height*this.clearance_range_factor);
 			for(var dy = 1; dy < clearance_range; dy++) {
-				if(y+dy < imageData.height-this.border)
-					section[y+dy][0] = this.max_mismatch; // invalidate point
-				if(y-dy >= this.border)
-					section[y-dy][0] = this.max_mismatch; // invalidate point
+				if(y+dy < imageData.height-this.track_spacing)
+					section[y+dy][0] = INVALID; // invalidate point
+				if(y-dy >= this.track_spacing)
+					section[y-dy][0] = INVALID; // invalidate point
 			}
 		}
 
 		// find top lines
-		return section.slice(0).sort().slice(0, limit);
+		rank = section.slice(0).sort(); // copy and sort
+		var selected = [];
+		for(var i = 0, n = Math.min(rank.length, limit); i < n; i++) {
+			if(rank[i][0] == INVALID)
+				break;
+			selected.push(rank[i]);
+		}
+
+		return selected;
 	},
 
 	//////////////////////////////////////// BORDER
@@ -68,11 +79,11 @@ var LipContour = {
 	getBorderSampleComponent:function(imageData, x,y, dx,dy, c) {
 		return [
 			this.getComponent(imageData,x,y,c),
-			this.getComponent(imageData,x+dx,y+dy-this.border,c),
+			this.getComponent(imageData,x+dx,y+dy-this.track_spacing,c),
 			this.getComponent(imageData,x+dx,y+dy,c),
-			this.getComponent(imageData,x+dx,y+dy+this.border,c),
-			this.getComponent(imageData,x,y-this.border,c),
-			this.getComponent(imageData,x,y-this.border,c)
+			this.getComponent(imageData,x+dx,y+dy+this.track_spacing,c),
+			this.getComponent(imageData,x,y-this.track_spacing,c),
+			this.getComponent(imageData,x,y-this.track_spacing,c)
 		];
 	},
 
@@ -139,18 +150,18 @@ var LipContour = {
 	},
 
 	getBorderMismatch:function(imageData, ref, x,y, dx,dy) {
-		var r = this.getBorderMismatchComponent(imageData, ref, x,y, dx,dy, 0);
-		var g = this.getBorderMismatchComponent(imageData, ref, x,y, dx,dy, 1);
-		var b = this.getBorderMismatchComponent(imageData, ref, x,y, dx,dy, 2);
-		return r*r + g*g + b*b;
+		var c1 = this.getBorderMismatchComponent(imageData, ref, x,y, dx,dy, 0);
+		var c2 = this.getBorderMismatchComponent(imageData, ref, x,y, dx,dy, 1);
+		var c3 = this.getBorderMismatchComponent(imageData, ref, x,y, dx,dy, 2);
+		return c1*c1 + c2*c2 + c3*c3;
 	},
 
 
 	trackBorder:function(imageData, ref, x,y, dx,dy){
-		var best = [this.max_mismatch, x,y];
+		var best = [Number.MAX_VALUE, x,y];
 		var search_range = Math.ceil(imageData.height * this.search_range_factor);
-		var min_y = Math.max(y - search_range, this.border);
-		var max_y = Math.min(y + search_range, imageData.height-1-this.border);
+		var min_y = Math.max(y - search_range, this.track_spacing+this.max_track_skew);
+		var max_y = Math.min(y + search_range, imageData.height-1-this.track_spacing-this.max_track_skew);
 		for(var cand_y = min_y; cand_y <= max_y; cand_y++) {
 			var mismatch = this.getBorderMismatch(imageData, ref, x,cand_y, dx,dy);
 			if(mismatch < best[0])
@@ -161,16 +172,17 @@ var LipContour = {
 
 	//////////////////////////////////////// CONTOUR
 
-    find:function(imageData){
-
-		// TODO track all borders at once and stop when they cross?
+	findTracks:function(imageData, offset) {
+		// TODO local decisions are very important, as global ones are (because of shadow differences)
+		// TODO score the distance between colors in all points (store colors in notes, expand all possible nodes and score each combination of branches)
+		// TODO track all borders at once and avoid crossing or even stop when they cross?
 		// TODO keep track of multiple possibilities up to a point and backtrack to the better one
 
 		// track borders
-        var section = this.findSection(imageData, this.num_tracks);
+        var section = this.findSection(imageData, this.num_tracks, offset);
 		section.sort(function(a,b) {return a[2] - b[2]}); // y-order
 		var track = [];
-		var x, y, dy, dx = this.border;
+		var x, y, dy, dx = this.track_spacing;
 		for(var i in section) {
 			track[i] = {
 				node: [section[i]]
@@ -181,11 +193,16 @@ var LipContour = {
 			x = section[i][1];
 			y = section[i][2];
 			var ref = this.getBorderSample(imageData, x,y, -dx,dy);
-			for(x-=dx; x > 0; x-=dx) {
+			for(x-=dx; x > this.track_spacing; x-=dx) {
 				ref = this.mixSamples(ref, this.getBorderSample(imageData, x,y, -dx,dy), this.reference_factor);
 				var node = this.trackBorder(imageData, ref, x,y, -dx,dy);
+				//node[0] *= section[i][0];
 				track[i].node.push(node);
-				dy = Math.floor((node[2] - y)/2);
+				
+				//dy = Math.floor((node[2] - y)/2);
+				//if(Math.abs(dy) > this.max_track_skew)
+				//	dy *= this.max_track_skew / Math.abs(dy);
+
 				y = node[2];
 			}
 
@@ -194,19 +211,135 @@ var LipContour = {
 			x = section[i][1];
 			y = section[i][2];
 			var ref = this.getBorderSample(imageData, x,y, dx,dy);
-			for(x+=dx; x < imageData.width; x+=dx) {
+			for(x+=dx; x < imageData.width-this.track_spacing; x+=dx) {
 				ref = this.mixSamples(ref, this.getBorderSample(imageData, x,y, dx,dy), this.reference_factor);
 				var node = this.trackBorder(imageData, ref, x,y, dx,dy);
+				//node[0] *= section[i][0];
 				track[i].node.unshift(node);
-				dy = Math.floor((node[2] - y)/2);
+
+				//dy = Math.floor((node[2] - y)/2);
+				//if(Math.abs(dy) > this.max_track_skew)
+				//	dy *= this.max_track_skew / Math.abs(dy);
+
 				y = node[2];
 			}
 		}
 
+		return track;
+	},
+
+	mergeTracks:function(trackBase, track) {
+		for(var i in track) {
+			trackBase.push(track[i]);
+		}
+	},
+
+	normalizeTracks:function(track) {
+		// normalize score
+		var min = Number.MAX_VALUE;
+		var max = 0;
+		var avg = 0;
+		var count = 0;
+		for(var j in track) {
+			for(var i = 0, n = track[j].node.length; i<n; i++){
+				var v = track[j].node[i][0];
+				if(v < min) min = v;
+				if(v > max) max = v;
+				avg += v;
+				count ++;
+			}
+			avg /= count;
+		}
+
+		for(var j in track) {
+			for(var i = 0, n = track[j].node.length; i<n; i++){
+				track[j].node[i][0] = (track[j].node[i][0]-min) / (max-min);
+			}
+		}
+	},
+
+	convertImageDataRGBtoHSL:function(imageDataRGB) {
+		var i;
+
+		// convert image data do HSL with high contrast on hue and low on lighting
+		var hsl = new Uint32Array(imageDataRGB.data.length);
+		var rgb = new Uint8Array(imageDataRGB.data.buffer);
+		i=0;
+		while(i < rgb.length) {
+			var r = rgb[i+0] / 255.;
+			var g = rgb[i+1] / 255.;
+			var b = rgb[i+2] / 255.;
+
+			var max = Math.max(r, g, b), min = Math.min(r, g, b);
+			var delta = max - min;
+			var hue = 0;
+			var brightness = max;
+			var saturation = max == 0 ? 0 : (max - min) / max;
+			if (delta != 0) {
+				if (r == max) {
+					hue = (g - b) / delta;
+				} else {
+					if (g == max) {
+						hue = 2 + (b - r) / delta; 
+					} else {
+						hue = 4 + (r - g) / delta;
+					}
+				}
+				hue *= 60;
+				hue += 270; // XXX put the reds in the middle of the scale
+				if (hue < 0) hue += 360;
+				else if (hue > 360) hue -= 360;
+			}
+
+			// weights
+			brightness /= 8.0;
+			saturation /= 2.0;
+
+			rgb[i+0] = Math.floor( hue / 360. * 255);
+			rgb[i+1] = Math.floor( brightness * 255); // XXX to display, brightness is better in green
+			rgb[i+2] = Math.floor( saturation * 255);
+			hsl[i+0] = hue / 360. * 65535;
+			hsl[i+1] = saturation * 65535;
+			hsl[i+2] = brightness * 65535;
+			i+=4;
+		}
+
+		return {
+			width: imageDataRGB.width,
+			height: imageDataRGB.height,
+			data: hsl
+		};
+	},
+
+    find:function(imageData){
+
+		// the maximum ammount the search line should follow the previous point tendency to go up or down
+		this.max_track_skew = Math.floor(imageData.height * this.search_range_factor / 2);
+
+		var track = []
+
+		if(this.use_rgb) {
+			var trackRGB = [];
+			var range = this.track_spacing * Math.ceil((this.num_sections-1)/2);
+			for(var offset=-range; offset <= range; offset += this.track_spacing) {
+				this.mergeTracks(trackRGB, this.findTracks(imageData, offset));
+			}
+			this.normalizeTracks(trackRGB);
+			this.mergeTracks(track, trackRGB);
+		}
+
+		if(this.use_hsl) {
+			var imageDataHSL = this.convertImageDataRGBtoHSL(imageData);
+			var trackHSL = this.findTracks(imageData, 0);
+			this.normalizeTracks(trackHSL);
+			this.mergeTracks(track, trackHSL);
+		}
+
+
 		// TODO find exactly two cross points
 		// TODO hold the position of the cross points
 		// for(var x = section[0][1]; x > 0; x-=dx) {
-		// for(var i in track) {
+		// for(i in track) {
 		// 	
 		// }
 		// }
@@ -219,12 +352,12 @@ var LipContour = {
 		// TODO select only 3 or 4 borders
 		var contour = [];
 		var dir = 1;
-		for(var i in track) {
+		for(i in track) {
 			var j_min_max = [0, track[i].node.length-1];
 			if(dir < 0)
 				j_min_max = j_min_max.reverse();
 			
-			for(var j = j_min_max[0]; j <= j_min_max[1]; j+=dir) {
+			for(var j = j_min_max[0]; j != j_min_max[1]; j+=dir) {
 				contour.push(track[i].node[j]);
 			}
 

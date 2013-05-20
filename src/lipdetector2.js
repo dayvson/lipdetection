@@ -18,22 +18,15 @@ LipDetector.prototype = {
 		if(!points || points.length < 2) return;
 
         containerCtx.strokeStyle = "yellow";
-		var min = LipContour.max_mismatch;
-		var max = 0;
         for(var i = 0, n = points.length; i<n; i++){
-			var v = points[i][0];
-			if(v < min) min = v;
-			if(v > max) max = v;
-		}
-        for(var i = 0, n = points.length; i<n; i++){
-			containerCtx.globalAlpha = (1 - (points[i][0]-min) / (max-min)) / 2;
+			containerCtx.globalAlpha = 0.25 + 0.75 * points[i][0];
 			var x = offsetX+points[i][1];
 			var y = offsetY+points[i][2];
 			containerCtx.strokeRect(
-				x-LipContour.border, 
-				y-LipContour.border, 
-				1+LipContour.border*2, 
-				1+LipContour.border*2
+				x-LipContour.track_spacing, 
+				y-LipContour.track_spacing, 
+				1+LipContour.track_spacing*2, 
+				1+LipContour.track_spacing*2
 			);
 		}
 
@@ -73,8 +66,10 @@ LipDetector.prototype = {
                                                             this.areaLips.position().top, 
                                                             this.areaLips.width(), 
                                                             this.areaLips.height());
+
+            this.lipCanvasCtx.putImageData(imageData, 0, 0);
             var contours = LipContour.find(imageData);
-            this.webcamCanvasCtx.putImageData(imageData, 0, 0);
+            this.lipCanvasCtx.putImageData(imageData, 0, imageData.height);
             this.draw(this.lipCanvasCtx, contours, this.areaLips.position().left, this.areaLips.position().top);
         }
     },
