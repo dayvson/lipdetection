@@ -275,7 +275,7 @@ var LipContour = {
 				    y = Math.floor(track[i].node[j][2]);
 				if(x > cx0 && x < cx1)
 					continue;
-				var div = 1+Math.abs(x - cx);
+				var div = 0.1+Math.abs(x - cx);
  				x /= decimation;
 				y /= decimation;
 				histogram[x+y*w] += (1-track[i].node[j][0]) / div;
