@@ -160,8 +160,8 @@ var LipContour = {
 	trackBorder:function(imageData, ref, x,y, dx,dy){
 		var best = [Number.MAX_VALUE, x,y];
 		var search_range = Math.ceil(imageData.height * this.search_range_factor);
-		var min_y = Math.max(y - search_range, this.track_spacing+this.max_track_skew);
-		var max_y = Math.min(y + search_range, imageData.height-1-this.track_spacing-this.max_track_skew);
+		var min_y = Math.max(y - search_range, this.track_spacing);
+		var max_y = Math.min(y + search_range, imageData.height-1-this.track_spacing);
 		for(var cand_y = min_y; cand_y <= max_y; cand_y++) {
 			var mismatch = this.getBorderMismatch(imageData, ref, x,cand_y, dx,dy);
 			if(mismatch < best[0])
@@ -196,13 +196,8 @@ var LipContour = {
 			for(x-=dx; x > this.track_spacing; x-=dx) {
 				ref = this.mixSamples(ref, this.getBorderSample(imageData, x,y, -dx,dy), this.reference_factor);
 				var node = this.trackBorder(imageData, ref, x,y, -dx,dy);
-				//node[0] *= section[i][0];
+				node[0] *= section[i][0]; // XXX not sure if should propagate section error to it's nodes
 				track[i].node.push(node);
-				
-				//dy = Math.floor((node[2] - y)/2);
-				//if(Math.abs(dy) > this.max_track_skew)
-				//	dy *= this.max_track_skew / Math.abs(dy);
-
 				y = node[2];
 			}
 
@@ -214,13 +209,8 @@ var LipContour = {
 			for(x+=dx; x < imageData.width-this.track_spacing; x+=dx) {
 				ref = this.mixSamples(ref, this.getBorderSample(imageData, x,y, dx,dy), this.reference_factor);
 				var node = this.trackBorder(imageData, ref, x,y, dx,dy);
-				//node[0] *= section[i][0];
+				node[0] *= section[i][0]; // XXX not sure if should propagate section error to it's nodes
 				track[i].node.unshift(node);
-
-				//dy = Math.floor((node[2] - y)/2);
-				//if(Math.abs(dy) > this.max_track_skew)
-				//	dy *= this.max_track_skew / Math.abs(dy);
-
 				y = node[2];
 			}
 		}
@@ -256,6 +246,40 @@ var LipContour = {
 				track[j].node[i][0] = (track[j].node[i][0]-min) / (max-min);
 			}
 		}
+	},
+
+	findCrossPoints:function(imageData, track) {
+		var cx = Math.floor(imageData.width/2);
+		var cy = Math.floor(imageData.height/2);
+		var crossPoint = [[0, cx, cy], [0, cx, cy]];
+
+		var decimation = this.track_spacing;
+		var w = imageData.width / decimation,
+		    h = imageData.height / decimation,
+		    histogram = new Float32Array(imageData.data.length);
+
+		for(var i in histogram) {
+			histogram[i] = 0;
+		}
+
+		for(var i in track) {
+			for(var j in track[i].node) {
+				var x = Math.floor(track[i].node[j][1] / decimation),
+				    y = Math.floor(track[i].node[j][2] / decimation);
+				histogram[x+y*w] += 1-track[i].node[j][0];
+			}
+		}
+
+		for(var i =0; i < histogram.length; i++) {
+			var x = (i % w) * decimation;
+			var j = Math.floor(x / cx);
+			if(histogram[i] > crossPoint[j][0]) {
+				var y = Math.floor(i / w) * decimation;
+				crossPoint[j] = [histogram[i], x, y];
+			}
+		}
+
+		return crossPoint;
 	},
 
 	convertImageDataRGBtoHSL:function(imageDataRGB) {
@@ -313,9 +337,6 @@ var LipContour = {
 
     find:function(imageData){
 
-		// the maximum ammount the search line should follow the previous point tendency to go up or down
-		this.max_track_skew = Math.floor(imageData.height * this.search_range_factor / 2);
-
 		var track = []
 
 		if(this.use_rgb) {
@@ -338,13 +359,7 @@ var LipContour = {
 
 		// TODO find exactly two cross points
 		// TODO hold the position of the cross points
-		// for(var x = section[0][1]; x > 0; x-=dx) {
-		// for(i in track) {
-		// 	
-		// }
-		// }
-
-		
+		var crossPoint = this.findCrossPoints(imageData, track);
 
 		// assemble contour
 		// TODO select proper borders (those crossing the cross points)
@@ -358,6 +373,8 @@ var LipContour = {
 				j_min_max = j_min_max.reverse();
 			
 			for(var j = j_min_max[0]; j != j_min_max[1]; j+=dir) {
+				if(track[i].node[j][1] < crossPoint[0][1] || track[i].node[j][1] > crossPoint[1][1])
+					continue;
 				contour.push(track[i].node[j]);
 			}
 
