@@ -3,8 +3,8 @@ var LipContour = {
 	debug:true,
 	use_rgb: true, // merge rgb and hsl border tracking
 	use_hsl: true, // merge rgb and hsl border tracking
-	num_sections: 3, // number of sections to find the starting track points
-	num_tracks: 6, // number of lines to track per section per colorspace
+	num_sections: 5, // number of sections to find the starting track points
+	num_tracks: 12, // number of lines to track per section per colorspace
 	track_spacing: 2, // at least 1, spacing between tracking points
 	section_spacing_factor: 0.1, // distance between section cuts, if there is more than one
 	clearance_range_factor: 0.05, // clear section points closer than this factor times height
@@ -346,8 +346,8 @@ var LipContour = {
 			for(var j = 0; j < track[i].node.length; j++) {
 				var x = track[i].node[j][1];
 				var k = Math.floor(x / cx);
-				var err_point = Math.pow(Math.max(1,(Math.abs(x-cx) - Math.abs(crossPoint[k][1]-cx))), 9);
-				var err_line = Math.pow(1+track[i].closest[0]*track[i].closest[1], 3);
+				var err_point = Math.pow(Math.max(1,(Math.abs(x-cx) - Math.abs(crossPoint[k][1]-cx))), 10); // FIXME hardcoded
+				var err_line = Math.pow(1+track[i].closest[0]*track[i].closest[1], 4); // FIXME hardcoded
 				track[i].node[j][0] *= err_line * err_point;
 			}
 		}
