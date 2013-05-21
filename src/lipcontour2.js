@@ -1,14 +1,16 @@
 var LipContour = {
 
-	num_sections: 3, // number of sections to find the starting track points
-	num_tracks: 6, // number of lines to track per section per colorspace
+	debug:true,
 	use_rgb: true, // merge rgb and hsl border tracking
 	use_hsl: true, // merge rgb and hsl border tracking
+	num_sections: 3, // number of sections to find the starting track points
+	num_tracks: 6, // number of lines to track per section per colorspace
 	track_spacing: 2, // at least 1, spacing between tracking points
+	section_spacing_factor: 0.1, // distance between section cuts, if there is more than one
 	clearance_range_factor: 0.05, // clear section points closer than this factor times height
 	search_range_factor: 0.1, // scan up and down for tracking horizontal lines this ammount times height
 	reference_factor: 0.95, // for each step this is the weight of the reference track points color that is kept for the next step
-	min_width: 0.25, // minimum mouth length wide to each side in relation to the image size
+	min_width: 0.2, // minimum mouth length wide to each side in relation to the image size
 	//crossPoint: [[0,0,0],[0,0,0]],
 
 	getComponent:function(imageData, x,y, c) {
@@ -185,7 +187,7 @@ var LipContour = {
 		section.sort(function(a,b) {return a[2] - b[2]}); // y-order
 		var track = [];
 		var x, y, dy, dx = this.track_spacing;
-		for(var i in section) {
+		for(var i = 0; i < section.length; i++) {
 			track[i] = {
 				node: [section[i]]
 			};
@@ -221,7 +223,7 @@ var LipContour = {
 	},
 
 	mergeTracks:function(trackBase, track) {
-		for(var i in track) {
+		for(var i = 0; i < track.length; i++) {
 			trackBase.push(track[i]);
 		}
 	},
@@ -232,9 +234,9 @@ var LipContour = {
 		var max = 0;
 		var avg = 0;
 		var count = 0;
-		for(var j in track) {
-			for(var i = 0, n = track[j].node.length; i<n; i++){
-				var v = track[j].node[i][0];
+		for(var i = 0; i < track.length; i++) {
+			for(var j = 0, n = track[i].node.length; j<n; j++){
+				var v = track[i].node[j][0];
 				if(v < min) min = v;
 				if(v > max) max = v;
 				avg += v;
@@ -243,9 +245,13 @@ var LipContour = {
 			avg /= count;
 		}
 
-		for(var j in track) {
-			for(var i = 0, n = track[j].node.length; i<n; i++){
-				track[j].node[i][0] = (track[j].node[i][0]-min) / (max-min);
+		//max = max * 0.001 + 0.999 * avg;
+		//min = min * 0.001 + 0.999 * avg;
+
+		for(var i = 0; i < track.length; i++) {
+			for(var j = 0, n = track[i].node.length; j<n; j++){
+				//track[i].node[j][0] = Math.min(1,Math.max(0, (track[i].node[j][0]-min) / (max-min) ));
+				track[i].node[j][0] = (track[i].node[j][0]-min) / (max-min);
 			}
 		}
 	},
@@ -258,38 +264,94 @@ var LipContour = {
 		var cy = Math.floor(imageData.height/2);
 		var cx0 = cx - min_width;
 		var cx1 = cx + min_width;
-		var crossPoint = [[0, cx0, cy], [0, cx1, cy]];
+		var crossPoint = [[Number.MAX_VALUE, cx0, cy], [Number.MAX_VALUE, cx1, cy]];
 
-		var decimation = this.track_spacing;
-		var w = imageData.width / decimation,
-		    h = imageData.height / decimation,
-		    histogram = new Float32Array(imageData.data.length);
+		var w = imageData.width,
+		    h = imageData.height,
+		    average = new Array(w);
 
-		for(var i in histogram) {
-			histogram[i] = 0;
+		// find the average line
+		for(var x = 0; x < w; x++) {
+			average[x] = new Float32Array(3); // distance, y average, y count
 		}
 
-		for(var i in track) {
-			for(var j in track[i].node) {
-				var x = Math.floor(track[i].node[j][1]),
-				    y = Math.floor(track[i].node[j][2]);
-				if(x > cx0 && x < cx1)
-					continue;
-				var div = 0.1+Math.abs(x - cx);
- 				x /= decimation;
-				y /= decimation;
-				histogram[x+y*w] += (1-track[i].node[j][0]) / div;
+		for(var i = 0; i < track.length; i++) {
+			for(var j = 0; j < track[i].node.length; j++) {
+				var x = track[i].node[j][1],
+				    y = track[i].node[j][2];
+				average[x][1] += y;
+				average[x][2] ++;
 			}
 		}
 
-		for(var i =0; i < histogram.length; i++) {
-			var x = (i % w) * decimation;
-			var j = Math.floor(x / cx);
-			if(histogram[i] > crossPoint[j][0]) {
-				var y = Math.floor(i / w) * decimation;
-				crossPoint[j] = [histogram[i], x, y];
+		for(var x = 0; x < w; x++) {
+			if(average[x][2] == 0) continue;
+			average[x][1] = Math.floor(average[x][1] / average[x][2]);
+		}
+
+		// distance to average line
+		for(var i = 0; i < track.length; i++) {
+			for(var j = 0; j < track[i].node.length; j++) {
+				var x = track[i].node[j][1],
+				    y = track[i].node[j][2];
+				var distance = Math.abs(y - average[x][1]);
+				average[x][0] += distance*distance / (0.001+track[i].node[j][0]);
 			}
 		}
+
+		var range = this.section_spacing_factor * w;
+		for(var x = 0; x < w; x++) {
+			if(average[x][2] == 0) continue;
+			//if(x > cx0 && x < cx1) continue;
+			var i = Math.floor(x / cx);
+			var distance = average[x][0] / (h+average[x+(i?-range:+range)][0])
+			if(distance < crossPoint[i][0]) {
+				crossPoint[i] = [distance, x, average[x][1]];
+			}
+		}
+
+		// debug
+		if(this.debug) {
+			imageData.data[(crossPoint[0][1] + crossPoint[0][2] * w)*4 + 0] = 0xff;
+			imageData.data[(crossPoint[0][1] + crossPoint[0][2] * w)*4 + 1] = 0xff;
+			imageData.data[(crossPoint[0][1] + crossPoint[0][2] * w)*4 + 2] = 0xff;
+
+			imageData.data[(crossPoint[1][1] + crossPoint[1][2] * w)*4 + 0] = 0xff;
+			imageData.data[(crossPoint[1][1] + crossPoint[1][2] * w)*4 + 1] = 0xff;
+			imageData.data[(crossPoint[1][1] + crossPoint[1][2] * w)*4 + 2] = 0xff;
+
+			//console.log(crossPoint[0][1], crossPoint[0][2], crossPoint[1][1], crossPoint[1][2] );
+		}
+
+		// reduce relevance of non-convergent lines
+		for(var i = 0; i < track.length; i++) {
+			var closest = [Number.MAX_VALUE, Number.MAX_VALUE];
+			for(var j = 0; j < track[i].node.length; j++) {
+				var x = track[i].node[j][1],
+				    y = track[i].node[j][2];
+				var k = Math.floor(x / cx);
+				if(crossPoint[k][1] == x) {
+					var dx = Math.abs(x - crossPoint[k][1]);
+					var dy = Math.abs(y - crossPoint[k][2]);
+					var distance = Math.sqrt(dx*dx + dy*dy);
+					if(distance < closest[k])
+						closest[k] = distance;
+				}
+			}
+			track[i].closest = closest;
+
+		}
+
+		for(var i = 0; i < track.length; i++) {
+			for(var j = 0; j < track[i].node.length; j++) {
+				var x = track[i].node[j][1];
+				var k = Math.floor(x / cx);
+				var err_point = Math.pow(Math.max(1,(Math.abs(x-cx) - Math.abs(crossPoint[k][1]-cx))), 9);
+				var err_line = Math.pow(1+track[i].closest[0]*track[i].closest[1], 3);
+				track[i].node[j][0] *= err_line * err_point;
+			}
+		}
+		//this.normalizeTracks(track);
 
 		return crossPoint;
 	},
@@ -331,9 +393,12 @@ var LipContour = {
 			brightness /= 8.0;
 			saturation /= 2.0;
 
-			rgb[i+0] = Math.floor( hue / 360. * 255);
-			rgb[i+1] = Math.floor( brightness * 255); // XXX to display, brightness is better in green
-			rgb[i+2] = Math.floor( saturation * 255);
+			if(this.debug) {
+				rgb[i+0] = Math.floor( hue / 360. * 255);
+				rgb[i+1] = Math.floor( brightness * 255); // XXX to display, brightness is better in green
+				rgb[i+2] = Math.floor( saturation * 255);
+			}
+
 			hsl[i+0] = hue / 360. * 65535;
 			hsl[i+1] = saturation * 65535;
 			hsl[i+2] = brightness * 65535;
@@ -353,8 +418,9 @@ var LipContour = {
 
 		if(this.use_rgb) {
 			var trackRGB = [];
-			var range = this.track_spacing * Math.ceil((this.num_sections-1)/2);
-			for(var offset=-range; offset <= range; offset += this.track_spacing) {
+			var section_spacing = this.section_spacing_factor * imageData.width;
+			var range = section_spacing * Math.ceil((this.num_sections-1)/2);
+			for(var offset=-range; offset <= range; offset += section_spacing) {
 				this.mergeTracks(trackRGB, this.findTracks(imageData, offset));
 			}
 			this.normalizeTracks(trackRGB);
@@ -372,6 +438,8 @@ var LipContour = {
 		// find exactly two cross points
 		// TODO keep the state of the position of the cross points, merge across time
 		var crossPoint = this.findCrossPoints(imageData, track);
+
+		// FIXME not using score anymore, using distance (error, mismatch); flip the factor weight logic
 		//{ // left
 		//	var f = this.crossPoint[0][0] + this.crossPoint[0][0], 
 		//		f0 = this.crossPoint[0][0] / f, 
@@ -396,14 +464,13 @@ var LipContour = {
 		// TODO select only 3 or 4 borders
 		var contour = [];
 		var dir = 1;
-		for(i in track) {
+		for(var i = 0; i < track.length; i++) {
 			var j_min_max = [0, track[i].node.length-1];
 			if(dir < 0)
 				j_min_max = j_min_max.reverse();
 			
 			for(var j = j_min_max[0]; j != j_min_max[1]; j+=dir) {
-				if(track[i].node[j][1] < crossPoint[0][1] || track[i].node[j][1] > crossPoint[1][1])
-					continue;
+				//if(track[i].node[j][1] < crossPoint[0][1] || track[i].node[j][1] > crossPoint[1][1]) continue;
 				contour.push(track[i].node[j]);
 			}
 

@@ -19,7 +19,7 @@ LipDetector.prototype = {
 
         containerCtx.strokeStyle = "yellow";
         for(var i = 0, n = points.length; i<n; i++){
-			containerCtx.globalAlpha = 0.25 + 0.75 * points[i][0];
+			containerCtx.globalAlpha = 1/(0.000001+points[i][0]);
 			var x = offsetX+points[i][1];
 			var y = offsetY+points[i][2];
 			containerCtx.strokeRect(
